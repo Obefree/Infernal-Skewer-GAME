@@ -12,7 +12,7 @@ The skewer is simultaneously:
 
 Stab living ingredients to put them directly onto the skewer. The base skewer has **8 slots**. Meat comes from the shared **Mega Hog**: bait its charge into an arena wall, stab it while stunned, then bring a correct recipe to the **Infernal Grill**.
 
-## Current browser build
+## Current browser build — v0.3
 
 Implemented now:
 
@@ -23,10 +23,19 @@ Implemented now:
 - `Shift` sprint;
 - `LMB` skewer thrust;
 - `E` recipe delivery near the Infernal Grill;
-- 8 visible skewer slots;
+- 8 visible player skewer slots;
 - living onion / tomato / cheese / pepper / mushroom ingredients;
 - Mega Hog charge → wall crash → stun → meat harvest loop;
+- Mega Hog can target either the player or the Rival Chef;
 - three exact-order recipes and score;
+- **Rival Chef bot** with its own visible skewer and score;
+- bot chooses a recipe, hunts required ingredients, uses stunned Mega Hog and delivers at the grill;
+- bot can target the player when the exposed player ingredient is exactly what its recipe needs;
+- **precision steal**: stab the exposed last ingredient on the Rival Chef's skewer to transfer it to your own skewer;
+- normal body hit staggers the rival but does not magically steal food;
+- knocked-off ingredients become physical world objects instead of disappearing;
+- dropped ingredients bounce, remain on the floor temporarily and can be re-skewered by either side;
+- Hog and Rival Chef can knock the player's last ingredient onto the floor;
 - no HP/death loop yet.
 
 ## Run
@@ -49,7 +58,7 @@ The root is also suitable for simple static hosting (GitHub Pages, Vercel, Netli
 | WASD | Move |
 | Space | Jump |
 | Shift | Sprint |
-| LMB | Thrust / harvest |
+| LMB | Thrust / harvest / precision steal |
 | E | Deliver recipe at grill |
 | Esc | Release mouse |
 
@@ -58,15 +67,16 @@ The root is also suitable for simple static hosting (GitHub Pages, Vercel, Netli
 - Standard skewer capacity is **8 ingredients**.
 - A ninth ingredient is rejected for now; overflow behavior will be tested later.
 - PvP should alter recipe state, not become a normal deathmatch.
-- Standard hits should remove at most one ingredient.
-- Combat, harvesting, inventory and recipe-building should stay in one continuous loop.
+- Standard punishment should affect at most one ingredient.
+- The exposed last ingredient is the default steal/knock-off target.
+- Dropped food remains contestable rather than being deleted.
+- Combat, harvesting, inventory and recipe-building stay in one continuous loop.
 
 ## Next prototype pass
 
-- physical dropped ingredients;
-- second player / bot with its own visible skewer;
-- precision steal of the exposed tip ingredient;
-- shoulder dash / bump;
-- skewer clash;
-- vulnerable grill cooking timer;
-- first multiplayer test after the solo core feels good.
+1. shoulder dash / bump on Space-modifier or dedicated key;
+2. skewer-vs-skewer clash when both attacks meet;
+3. short vulnerable cooking timer at the Infernal Grill instead of instant delivery;
+4. stronger bot combat telegraph / thrust animation;
+5. simple 5–6 minute match timer and win state;
+6. first real multiplayer networking test after these interactions feel good.
