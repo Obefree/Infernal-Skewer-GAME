@@ -9,6 +9,7 @@ const recipesEl = document.querySelector('#recipes');
 const scoreEl = document.querySelector('#score');
 const hogStateEl = document.querySelector('#hogState');
 const skewerCountEl = document.querySelector('#skewerCount');
+const rivalStateEl = document.querySelector('#rivalState');
 const toastEl = document.querySelector('#toast');
 
 const MAX_SKEWER = 8;
@@ -21,6 +22,7 @@ const JUMP_SPEED = 7.1;
 const GRAVITY = 19.5;
 const THRUST_COOLDOWN = 0.36;
 const THRUST_RANGE = 3.25;
+const DROP_LIFETIME = 18;
 
 const ingredientDefs = {
   meat: { emoji: '🥩', color: 0x8e2c25, shape: 'cube' },
@@ -149,6 +151,10 @@ function ingredientGeometry(type, size = 0.5) {
 
 const harvestTargets = [];
 const ingredientCreatures = [];
+const droppedIngredients = [];
+const droppedTargets = [];
+const rivalTargets = [];
+
 function spawnIngredient(type, x, z) {
   const root = new THREE.Group();
   root.position.set(x, 0, z);
@@ -216,6 +222,7 @@ hog.userData.timer = 2.4;
 hog.userData.stun = 0;
 hog.userData.harvestCooldown = 0;
 hog.userData.velocity = new THREE.Vector3();
+hog.userData.chargeTarget = 'player';
 const hogBody = new THREE.Mesh(
   new THREE.SphereGeometry(1.28, 28, 20),
   new THREE.MeshStandardMaterial({ color: 0x7a251d, roughness: 0.68 }),
@@ -264,10 +271,7 @@ const rod = new THREE.Mesh(
 rod.rotation.z = Math.PI / 2;
 rod.position.x = 0.78;
 skewerView.add(rod);
-const tip = new THREE.Mesh(
-  new THREE.ConeGeometry(0.045, 0.22, 8),
-  rod.material,
-);
+const tip = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.22, 8), rod.material);
 tip.rotation.z = -Math.PI / 2;
 tip.position.x = 1.65;
 skewerView.add(tip);
@@ -283,6 +287,76 @@ const player = {
   thrustAnim: 0,
 };
 
+function createRivalChef() {
+  const root = new THREE.Group();
+  root.position.set(-6, 0, 4);
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x53121a, roughness: 0.55, metalness: 0.1 });
+  const apronMat = new THREE.MeshStandardMaterial({ color: 0x191313, roughness: 0.68 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xbd5a45, roughness: 0.7 });
+  const metalMat = new THREE.MeshStandardMaterial({ color: 0xd9d7cf, metalness: 0.9, roughness: 0.18 });
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.75, 6, 12), bodyMat);
+  torso.position.y = 1.05;
+  torso.castShadow = true;
+  torso.userData.rivalBody = true;
+  root.add(torso);
+  rivalTargets.push(torso);
+
+  const apron = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.72, 0.08), apronMat);
+  apron.position.set(0, 0.95, -0.4);
+  root.add(apron);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, 18, 14), skinMat);
+  head.position.set(0, 1.82, 0);
+  head.castShadow = true;
+  head.userData.rivalBody = true;
+  root.add(head);
+  rivalTargets.push(head);
+
+  const hornMat = new THREE.MeshStandardMaterial({ color: 0x24100c, roughness: 0.8 });
+  for (const x of [-0.22, 0.22]) {
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.4, 9), hornMat);
+    horn.position.set(x, 2.13, 0);
+    horn.rotation.z = x < 0 ? 0.35 : -0.35;
+    root.add(horn);
+  }
+
+  const label = makeLabel('😈 RIVAL CHEF', '#ffb1b1');
+  label.position.y = 2.8;
+  root.add(label);
+
+  const skewer = new THREE.Group();
+  skewer.position.set(0.55, 1.05, -0.42);
+  root.add(skewer);
+  const rivalRod = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 2.05, 8), metalMat);
+  rivalRod.rotation.x = Math.PI / 2;
+  rivalRod.position.z = -0.85;
+  skewer.add(rivalRod);
+  const rivalTip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.23, 8), metalMat);
+  rivalTip.rotation.x = -Math.PI / 2;
+  rivalTip.position.z = -1.98;
+  skewer.add(rivalTip);
+  const itemGroup = new THREE.Group();
+  skewer.add(itemGroup);
+
+  scene.add(root);
+  return {
+    root,
+    skewer,
+    itemGroup,
+    items: [],
+    score: 0,
+    recipeIndex: 0,
+    attackCooldown: 0,
+    collectCooldown: 0,
+    stagger: 0,
+    speed: 3.65,
+  };
+}
+
+const rival = createRivalChef();
+
 const keys = new Set();
 const raycaster = new THREE.Raycaster();
 const center = new THREE.Vector2(0, 0);
@@ -295,6 +369,10 @@ function showToast(text, seconds = 1) {
   toastTimeout = seconds;
 }
 
+function currentRivalRecipe() {
+  return recipes[rival.recipeIndex % recipes.length];
+}
+
 function updateHUD() {
   slotsEl.innerHTML = '';
   for (let i = 0; i < MAX_SKEWER; i += 1) {
@@ -303,9 +381,13 @@ function updateHUD() {
     slot.textContent = player.items[i] ? ingredientDefs[player.items[i]].emoji : '·';
     slotsEl.appendChild(slot);
   }
-  scoreEl.textContent = `Score: ${player.score}`;
+  scoreEl.textContent = `You: ${player.score} · Rival: ${rival.score}`;
   skewerCountEl.textContent = `Skewer: ${player.items.length}/${MAX_SKEWER}`;
   hogStateEl.textContent = `Mega Hog: ${hog.userData.state}`;
+  if (rivalStateEl) {
+    const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
+    rivalStateEl.textContent = `Rival: ${itemText} (${rival.items.length}/8)`;
+  }
 }
 
 function rebuildSkewerView() {
@@ -316,6 +398,25 @@ function rebuildSkewerView() {
     mesh.rotation.set(Math.random() * 0.4, Math.random() * 0.4, Math.random() * 0.4);
     skewerItemGroup.add(mesh);
   });
+}
+
+function rebuildRivalSkewer() {
+  rival.itemGroup.clear();
+  for (let i = rivalTargets.length - 1; i >= 0; i -= 1) {
+    if (rivalTargets[i].userData.rivalIngredient) rivalTargets.splice(i, 1);
+  }
+
+  rival.items.forEach((type, index) => {
+    const mesh = ingredientGeometry(type, 0.28);
+    mesh.position.set(0, 0, -0.28 - index * 0.2);
+    mesh.rotation.set(Math.random() * 0.35, Math.random() * 0.35, Math.random() * 0.35);
+    mesh.userData.rivalIngredient = true;
+    mesh.userData.rivalIngredientIndex = index;
+    mesh.userData.ingredientType = type;
+    rival.itemGroup.add(mesh);
+    rivalTargets.push(mesh);
+  });
+  updateHUD();
 }
 
 function addIngredient(type) {
@@ -330,12 +431,62 @@ function addIngredient(type) {
   return true;
 }
 
-function loseLastIngredient(reason) {
-  if (!player.items.length) return;
+function addRivalIngredient(type) {
+  if (rival.items.length >= MAX_SKEWER) return false;
+  rival.items.push(type);
+  rebuildRivalSkewer();
+  return true;
+}
+
+function spawnDroppedIngredient(type, position, impulse = new THREE.Vector3()) {
+  const mesh = ingredientGeometry(type, 0.46);
+  mesh.position.copy(position);
+  mesh.position.y = Math.max(0.45, position.y || 0.45);
+  mesh.userData.dropType = type;
+  mesh.userData.velocity = impulse.clone();
+  mesh.userData.velocity.y = Math.max(mesh.userData.velocity.y, 2.4);
+  mesh.userData.life = DROP_LIFETIME;
+  mesh.userData.spin = new THREE.Vector3(
+    THREE.MathUtils.randFloatSpread(6),
+    THREE.MathUtils.randFloatSpread(6),
+    THREE.MathUtils.randFloatSpread(6),
+  );
+  scene.add(mesh);
+  droppedIngredients.push(mesh);
+  droppedTargets.push(mesh);
+  return mesh;
+}
+
+function removeDroppedIngredient(mesh) {
+  const i = droppedIngredients.indexOf(mesh);
+  if (i >= 0) droppedIngredients.splice(i, 1);
+  const j = droppedTargets.indexOf(mesh);
+  if (j >= 0) droppedTargets.splice(j, 1);
+  scene.remove(mesh);
+}
+
+function loseLastIngredient(reason, worldPosition = camera.position, impulse = new THREE.Vector3()) {
+  if (!player.items.length) return null;
   const type = player.items.pop();
+  spawnDroppedIngredient(type, worldPosition.clone(), impulse);
   rebuildSkewerView();
   updateHUD();
+  showToast(`${reason}: ${ingredientDefs[type].emoji} DROPPED!`);
+  return type;
+}
+
+function loseRivalLast(reason = 'RIVAL DROPPED') {
+  if (!rival.items.length) return null;
+  const type = rival.items.pop();
+  const pos = rival.root.position.clone().add(new THREE.Vector3(0, 1, 0));
+  spawnDroppedIngredient(type, pos, new THREE.Vector3(
+    THREE.MathUtils.randFloatSpread(2.2),
+    2.8,
+    THREE.MathUtils.randFloatSpread(2.2),
+  ));
+  rebuildRivalSkewer();
   showToast(`${reason}: ${ingredientDefs[type].emoji}`);
+  return type;
 }
 
 function respawnCreature(creature) {
@@ -343,6 +494,34 @@ function respawnCreature(creature) {
   creature.position.copy(creature.userData.home);
   creature.position.x += Math.cos(angle) * 1.2;
   creature.position.z += Math.sin(angle) * 1.2;
+}
+
+function handleRivalHit(object) {
+  if (object.userData.rivalIngredient) {
+    const index = object.userData.rivalIngredientIndex;
+    if (index !== rival.items.length - 1) {
+      showToast('HIT THE EXPOSED END PIECE!');
+      return;
+    }
+    const type = rival.items[index];
+    if (player.items.length >= MAX_SKEWER) {
+      loseRivalLast('RIVAL LOST');
+      return;
+    }
+    rival.items.pop();
+    rebuildRivalSkewer();
+    player.items.push(type);
+    rebuildSkewerView();
+    updateHUD();
+    rival.stagger = 0.45;
+    showToast(`STOLEN! ${ingredientDefs[type].emoji} ${type.toUpperCase()}`, 1.2);
+    return;
+  }
+
+  rival.stagger = 0.55;
+  const away = rival.root.position.clone().sub(camera.position).setY(0);
+  if (away.lengthSq() > 0.01) rival.root.position.add(away.normalize().multiplyScalar(0.85));
+  showToast(rival.items.length ? 'HIT THE FOOD TO STEAL IT!' : 'CLANG!');
 }
 
 function thrust() {
@@ -354,10 +533,23 @@ function thrust() {
 
   raycaster.setFromCamera(center, camera);
   raycaster.far = THRUST_RANGE;
-  const hits = raycaster.intersectObjects(harvestTargets, false);
+  const targets = [...rivalTargets, ...droppedTargets, ...harvestTargets];
+  const hits = raycaster.intersectObjects(targets, false);
   if (!hits.length) return;
+  const hit = hits[0].object;
 
-  const root = hits[0].object.userData.harvestRoot;
+  if (hit.userData.rivalIngredient || hit.userData.rivalBody) {
+    handleRivalHit(hit);
+    return;
+  }
+
+  if (hit.userData.dropType) {
+    const type = hit.userData.dropType;
+    if (addIngredient(type)) removeDroppedIngredient(hit);
+    return;
+  }
+
+  const root = hit.userData.harvestRoot;
   if (!root) return;
 
   if (root === hog) {
@@ -447,13 +639,22 @@ function updateCreatures(dt, time) {
     const phase = creature.userData.phase;
     creature.position.y = Math.sin(time * 2.2 + phase) * 0.05;
     creature.rotation.y += dt * 0.5;
-    const dx = camera.position.x - creature.position.x;
-    const dz = camera.position.z - creature.position.z;
-    const distance = Math.hypot(dx, dz);
-    if (distance < 3.8 && distance > 0.01) {
-      creature.position.x -= (dx / distance) * dt * 0.7;
-      creature.position.z -= (dz / distance) * dt * 0.7;
+
+    const playerDx = camera.position.x - creature.position.x;
+    const playerDz = camera.position.z - creature.position.z;
+    const playerDistance = Math.hypot(playerDx, playerDz);
+    const rivalDx = rival.root.position.x - creature.position.x;
+    const rivalDz = rival.root.position.z - creature.position.z;
+    const rivalDistance = Math.hypot(rivalDx, rivalDz);
+
+    if (playerDistance < 3.8 && playerDistance > 0.01) {
+      creature.position.x -= (playerDx / playerDistance) * dt * 0.7;
+      creature.position.z -= (playerDz / playerDistance) * dt * 0.7;
+    } else if (rivalDistance < 3.4 && rivalDistance > 0.01) {
+      creature.position.x -= (rivalDx / rivalDistance) * dt * 0.55;
+      creature.position.z -= (rivalDz / rivalDistance) * dt * 0.55;
     }
+
     creature.position.x = THREE.MathUtils.clamp(creature.position.x, -ARENA_HALF + 1.4, ARENA_HALF - 1.4);
     creature.position.z = THREE.MathUtils.clamp(creature.position.z, -ARENA_HALF + 1.4, ARENA_HALF - 1.4);
   });
@@ -482,12 +683,16 @@ function updateHog(dt) {
     hog.userData.timer -= dt;
     hog.rotation.y += dt * 0.45;
     if (hog.userData.timer <= 0) {
-      const target = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+      const targetRival = Math.random() < 0.35;
+      hog.userData.chargeTarget = targetRival ? 'rival' : 'player';
+      const target = targetRival
+        ? new THREE.Vector3(rival.root.position.x, 0, rival.root.position.z)
+        : new THREE.Vector3(camera.position.x, 0, camera.position.z);
       const direction = target.sub(hog.position).setY(0).normalize();
       hog.userData.velocity.copy(direction.multiplyScalar(12.5));
       hog.lookAt(hog.position.clone().add(direction));
       setHogState('charge');
-      showToast('🐗 MEGA HOG CHARGE!', 0.7);
+      showToast(`🐗 HOG CHARGE → ${targetRival ? 'RIVAL' : 'YOU'}!`, 0.7);
     }
     return;
   }
@@ -504,16 +709,206 @@ function updateHog(dt) {
     return;
   }
 
-  const dx = camera.position.x - hog.position.x;
-  const dz = camera.position.z - hog.position.z;
-  if (Math.hypot(dx, dz) < 1.65) {
-    const knock = new THREE.Vector3(dx, 0, dz).normalize().multiplyScalar(2.5);
+  const pdx = camera.position.x - hog.position.x;
+  const pdz = camera.position.z - hog.position.z;
+  if (Math.hypot(pdx, pdz) < 1.65) {
+    const knock = new THREE.Vector3(pdx, 0, pdz).normalize().multiplyScalar(2.5);
     camera.position.add(knock);
     player.velocityY = Math.max(player.velocityY, 3.5);
     player.grounded = false;
-    loseLastIngredient('HOG KNOCKED OFF');
+    loseLastIngredient('HOG KNOCKED OFF', camera.position, knock.clone().multiplyScalar(0.8));
     hog.userData.timer = 2.8;
     setHogState('roam');
+    return;
+  }
+
+  const rdx = rival.root.position.x - hog.position.x;
+  const rdz = rival.root.position.z - hog.position.z;
+  if (Math.hypot(rdx, rdz) < 1.8) {
+    const knock = new THREE.Vector3(rdx, 0, rdz).normalize().multiplyScalar(2.2);
+    rival.root.position.add(knock);
+    loseRivalLast('HOG KNOCKED RIVAL');
+    rival.stagger = 0.8;
+    hog.userData.timer = 2.8;
+    setHogState('roam');
+  }
+}
+
+function recipePrefixMatches(items, recipe) {
+  return items.every((type, index) => recipe.items[index] === type);
+}
+
+function chooseRivalRecipe() {
+  if (recipePrefixMatches(rival.items, currentRivalRecipe())) return;
+
+  const valid = recipes
+    .map((recipe, index) => ({ recipe, index }))
+    .filter(({ recipe }) => recipePrefixMatches(rival.items, recipe));
+  if (valid.length) {
+    rival.recipeIndex = valid[Math.floor(Math.random() * valid.length)].index;
+    return;
+  }
+
+  if (rival.items.length) loseRivalLast('RIVAL FIXES RECIPE');
+  if (!rival.items.length) rival.recipeIndex = Math.floor(Math.random() * recipes.length);
+}
+
+function closestCreatureOfType(type) {
+  let best = null;
+  let bestDistance = Infinity;
+  ingredientCreatures.forEach((creature) => {
+    if (creature.userData.type !== type) return;
+    const distance = rival.root.position.distanceTo(creature.position);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = creature;
+    }
+  });
+  return best;
+}
+
+function closestDroppedOfType(type) {
+  let best = null;
+  let bestDistance = Infinity;
+  droppedIngredients.forEach((drop) => {
+    if (drop.userData.dropType !== type) return;
+    const distance = rival.root.position.distanceTo(drop.position);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = drop;
+    }
+  });
+  return best;
+}
+
+function moveRivalToward(target, dt, speed = rival.speed) {
+  const direction = target.clone().sub(rival.root.position).setY(0);
+  const distance = direction.length();
+  if (distance > 0.05) {
+    direction.normalize();
+    rival.root.position.addScaledVector(direction, speed * dt);
+    rival.root.lookAt(rival.root.position.clone().add(direction));
+  }
+  const limit = ARENA_HALF - 1.2;
+  rival.root.position.x = THREE.MathUtils.clamp(rival.root.position.x, -limit, limit);
+  rival.root.position.z = THREE.MathUtils.clamp(rival.root.position.z, -limit, limit);
+  return distance;
+}
+
+function updateRival(dt) {
+  rival.attackCooldown = Math.max(0, rival.attackCooldown - dt);
+  rival.collectCooldown = Math.max(0, rival.collectCooldown - dt);
+  rival.stagger = Math.max(0, rival.stagger - dt);
+  if (rival.stagger > 0) return;
+
+  chooseRivalRecipe();
+  const recipe = currentRivalRecipe();
+
+  if (rival.items.length === recipe.items.length) {
+    const distance = moveRivalToward(grill.position, dt, rival.speed * 1.08);
+    if (distance < 2.5) {
+      rival.score += recipe.points;
+      rival.items = [];
+      rival.recipeIndex = (rival.recipeIndex + 1) % recipes.length;
+      rebuildRivalSkewer();
+      showToast(`😈 RIVAL SERVED ${recipe.name.toUpperCase()} +${recipe.points}`, 1.2);
+    }
+    return;
+  }
+
+  const needed = recipe.items[rival.items.length];
+
+  const playerLast = player.items[player.items.length - 1];
+  if (playerLast === needed && rival.attackCooldown <= 0) {
+    const playerTarget = new THREE.Vector3(camera.position.x, 0, camera.position.z);
+    const distance = moveRivalToward(playerTarget, dt, rival.speed * 1.16);
+    if (distance < 1.75) {
+      rival.attackCooldown = 1.15;
+      const stolen = player.items.pop();
+      if (stolen && addRivalIngredient(stolen)) {
+        rebuildSkewerView();
+        updateHUD();
+        const away = camera.position.clone().sub(rival.root.position).setY(0);
+        if (away.lengthSq() > 0.01) camera.position.add(away.normalize().multiplyScalar(0.9));
+        showToast(`😈 RIVAL STOLE YOUR ${ingredientDefs[stolen].emoji}!`, 1.3);
+      }
+    }
+    return;
+  }
+
+  const dropped = closestDroppedOfType(needed);
+  if (dropped) {
+    const distance = moveRivalToward(dropped.position, dt);
+    if (distance < 1.15 && rival.collectCooldown <= 0) {
+      rival.collectCooldown = 0.55;
+      addRivalIngredient(needed);
+      removeDroppedIngredient(dropped);
+    }
+    return;
+  }
+
+  if (needed === 'meat') {
+    if (hog.userData.state === 'stunned') {
+      const distance = moveRivalToward(hog.position, dt, rival.speed * 1.08);
+      if (distance < 2.15 && rival.collectCooldown <= 0 && hog.userData.harvestCooldown <= 0) {
+        rival.collectCooldown = 0.7;
+        hog.userData.harvestCooldown = 0.55;
+        addRivalIngredient('meat');
+      }
+    } else {
+      const orbit = new THREE.Vector3(
+        hog.position.x + Math.cos(clock.elapsedTime * 0.65) * 5.5,
+        0,
+        hog.position.z + Math.sin(clock.elapsedTime * 0.65) * 5.5,
+      );
+      moveRivalToward(orbit, dt, rival.speed * 0.85);
+    }
+    return;
+  }
+
+  const creature = closestCreatureOfType(needed);
+  if (creature) {
+    const distance = moveRivalToward(creature.position, dt);
+    if (distance < 1.35 && rival.collectCooldown <= 0) {
+      rival.collectCooldown = 0.65;
+      if (addRivalIngredient(needed)) respawnCreature(creature);
+    }
+  }
+}
+
+function updateDrops(dt) {
+  for (let i = droppedIngredients.length - 1; i >= 0; i -= 1) {
+    const drop = droppedIngredients[i];
+    drop.userData.life -= dt;
+    const velocity = drop.userData.velocity;
+    velocity.y -= GRAVITY * dt * 0.8;
+    drop.position.addScaledVector(velocity, dt);
+    drop.rotation.x += drop.userData.spin.x * dt;
+    drop.rotation.y += drop.userData.spin.y * dt;
+    drop.rotation.z += drop.userData.spin.z * dt;
+
+    if (drop.position.y < 0.3) {
+      drop.position.y = 0.3;
+      if (Math.abs(velocity.y) > 0.6) velocity.y *= -0.35;
+      else velocity.y = 0;
+      velocity.x *= 0.82;
+      velocity.z *= 0.82;
+    }
+
+    if (drop.userData.life <= 0) removeDroppedIngredient(drop);
+  }
+}
+
+function updateRivalPlayerBump() {
+  if (rival.attackCooldown > 0 || rival.stagger > 0) return;
+  const dx = camera.position.x - rival.root.position.x;
+  const dz = camera.position.z - rival.root.position.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance < 1.25 && player.items.length) {
+    rival.attackCooldown = 1.25;
+    const direction = new THREE.Vector3(dx, 0, dz).normalize();
+    camera.position.add(direction.clone().multiplyScalar(0.8));
+    loseLastIngredient('RIVAL KNOCKED OFF', camera.position, direction.multiplyScalar(2.2));
   }
 }
 
@@ -535,6 +930,9 @@ function animate() {
   updateMovement(dt);
   updateCreatures(dt, elapsed);
   updateHog(dt);
+  updateRival(dt);
+  updateRivalPlayerBump();
+  updateDrops(dt);
   animateWeapon(dt);
 
   fire.intensity = 48 + Math.sin(elapsed * 9) * 10 + Math.sin(elapsed * 15) * 5;
@@ -558,4 +956,5 @@ addEventListener('resize', () => {
 
 updateHUD();
 rebuildSkewerView();
+rebuildRivalSkewer();
 animate();
