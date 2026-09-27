@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#140503" />
+  <title>Infernal Skewer — Browser Prototype</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hud" class="hud">
+    <header class="topbar">
+      <div><strong>INFERNAL SKEWER</strong><span class="muted">browser prototype v0.2</span></div>
+      <div id="score">Score: 0</div>
+    </header>
+    <section id="recipes" class="recipes"></section>
+    <section class="right-panel">
+      <div id="hogState">Mega Hog: roaming</div>
+      <div id="skewerCount">Skewer: 0/8</div>
+    </section>
+    <div id="crosshair" class="crosshair">+</div>
+    <div id="toast" class="toast hidden"></div>
+    <div id="slots" class="slots"></div>
+    <footer class="controls">WASD move · mouse look · Space jump · Shift sprint · LMB thrust · E grill</footer>
+  </div>
+  <div id="start" class="start-screen">
+    <div class="card">
+      <div class="eyebrow">HELL KITCHEN PROTOTYPE</div>
+      <h1>Infernal Skewer</h1>
+      <p>Stab living ingredients. Build a recipe directly on your weapon. Bait the Mega Hog into a wall to harvest meat.</p>
+      <button id="startButton">ENTER THE KITCHEN</button>
+      <p class="hint">WASD · mouse · Space jump · Shift sprint · LMB stab · E grill</p>
+    </div>
+  </div>
+  <script type="module" src="./src/game.js"></script>
+</body>
+</html>
