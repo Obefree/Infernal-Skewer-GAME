@@ -517,8 +517,8 @@ function updateHUD() {
   scoreEl.textContent = onlineCount > 1 ? `You: ${player.score} · Online: ${onlineCount}` : `You: ${player.score} · Rival: ${rival.score}`;
   skewerCountEl.textContent = `Skewer: ${player.items.length}/${MAX_SKEWER}`;
   hogStateEl.textContent = hog.userData.state === 'stunned'
-    ? '🐗 STUNNED — GET CLOSE + STAB → 🥩'
-    : '🐗 MEAT — BAIT HOG INTO A WALL';
+    ? '🐗 PINNED! 2s — STAB → 🥩'
+    : '🐗 STAB TO PUSH → PIN TO WALL FOR MEAT';
   if (rivalStateEl) {
     const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
     rivalStateEl.textContent = `Rival: ${itemText} (${rival.items.length}/8)`;
@@ -757,15 +757,17 @@ function getMobileAssistTarget(maxRange = 4.0) {
     flat.normalize();
     const dot = forward.dot(flat);
 
-    const isStunnedHog = root === hog && hog.userData.state === 'stunned';
+    const isHog = root === hog;
+    const isStunnedHog = isHog && hog.userData.state === 'stunned';
     const isFood = Boolean(target.userData.remoteIngredient || target.userData.rivalIngredient || target.userData.dropType || (root && root !== hog));
-    const minDot = isStunnedHog ? 0.35 : (isFood ? 0.62 : 0.76);
+    const minDot = isStunnedHog ? 0.35 : (isHog ? 0.55 : (isFood ? 0.62 : 0.76));
     if (dot < minDot) continue;
 
     let priority = 3;
     if (isStunnedHog) priority = 0;
     else if (target.userData.remoteIngredient || target.userData.rivalIngredient) priority = 1;
     else if (target.userData.dropType || (root && root !== hog)) priority = 2;
+    else if (isHog) priority = 2;
 
     const score = priority * 8 + distance - dot * 1.4;
     if (score < bestScore) {
@@ -837,15 +839,35 @@ function thrust() {
   if (!root) return;
 
   if (root === hog) {
-    if (hog.userData.state === 'stunned' && hog.userData.harvestCooldown <= 0) {
-      if (addIngredient('meat')) {
+    if (hog.userData.state === 'stunned') {
+      if (hog.userData.harvestCooldown <= 0 && addIngredient('meat')) {
         hog.userData.harvestCooldown = 0.55;
         showToast('🥩 MEAT ON YOUR SKEWER!', 1.2);
       }
-    } else if (hog.userData.state === 'stunned') {
-      showToast('HOG IS STUNNED — STAB AGAIN!', 0.8);
+      return;
+    }
+
+    const push = hog.position.clone().sub(camera.position).setY(0);
+    if (push.lengthSq() < 0.01) {
+      camera.getWorldDirection(push);
+      push.y = 0;
+    }
+    push.normalize();
+    hog.position.addScaledVector(push, 2.35);
+    hog.position.x = THREE.MathUtils.clamp(hog.position.x, -ARENA_HALF + 1.55, ARENA_HALF - 1.55);
+    hog.position.z = THREE.MathUtils.clamp(hog.position.z, -ARENA_HALF + 1.55, ARENA_HALF - 1.55);
+    hog.userData.velocity.set(0, 0, 0);
+
+    const pinned = Math.abs(hog.position.x) >= ARENA_HALF - 1.7 || Math.abs(hog.position.z) >= ARENA_HALF - 1.7;
+    if (pinned) {
+      hog.userData.stun = 2.0;
+      hog.userData.harvestCooldown = 0;
+      setHogState('stunned');
+      showToast('🐗 PINNED TO WALL! 2s — STAB FOR 🥩', 1.2);
     } else {
-      showToast('🐗 BAIT THE HOG INTO A WALL FIRST!', 1.2);
+      hog.userData.timer = 0.85;
+      setHogState('roam');
+      showToast('🐗 PUSH IT INTO A WALL!', 0.65);
     }
     return;
   }
@@ -1033,7 +1055,7 @@ function updateHog(dt) {
     hog.rotation.z = Math.sin(clock.elapsedTime * 18) * 0.05;
     if (hog.userData.stun <= 0) {
       hog.rotation.z = 0;
-      hog.userData.timer = 2.3;
+      hog.userData.timer = 1.4;
       setHogState('roam');
     }
     return;
@@ -1063,9 +1085,9 @@ function updateHog(dt) {
   if (hitWall) {
     hog.position.x = THREE.MathUtils.clamp(hog.position.x, -ARENA_HALF + 1.8, ARENA_HALF - 1.8);
     hog.position.z = THREE.MathUtils.clamp(hog.position.z, -ARENA_HALF + 1.8, ARENA_HALF - 1.8);
-    hog.userData.stun = 3.2;
-    setHogState('stunned');
-    showToast('🐗 STUNNED — STAB FOR MEAT!', 1.25);
+    hog.userData.velocity.set(0, 0, 0);
+    hog.userData.timer = 1.15;
+    setHogState('roam');
     return;
   }
 
