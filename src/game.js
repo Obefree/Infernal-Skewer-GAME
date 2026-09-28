@@ -11,6 +11,14 @@ const hogStateEl = document.querySelector('#hogState');
 const skewerCountEl = document.querySelector('#skewerCount');
 const rivalStateEl = document.querySelector('#rivalState');
 const toastEl = document.querySelector('#toast');
+const mobileControls = document.querySelector('#mobileControls');
+const movePad = document.querySelector('#movePad');
+const moveKnob = document.querySelector('#moveKnob');
+const lookPad = document.querySelector('#lookPad');
+const stabButton = document.querySelector('#stabButton');
+const dropButton = document.querySelector('#dropButton');
+const useButton = document.querySelector('#useButton');
+const rotateHint = document.querySelector('#rotateHint');
 
 const MAX_SKEWER = 8;
 const ARENA_HALF = 18;
@@ -23,6 +31,9 @@ const GRAVITY = 19.5;
 const THRUST_COOLDOWN = 0.36;
 const THRUST_RANGE = 3.25;
 const DROP_LIFETIME = 18;
+const CREATURE_RESPAWN_MIN = 3;
+const CREATURE_RESPAWN_MAX = 6;
+const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 900;
 
 const ingredientDefs = {
   meat: { emoji: '🥩', color: 0x8e2c25, shape: 'cube' },
@@ -160,7 +171,8 @@ function spawnIngredient(type, x, z) {
   root.position.set(x, 0, z);
   root.userData.type = type;
   root.userData.phase = Math.random() * Math.PI * 2;
-  root.userData.home = new THREE.Vector3(x, 0, z);
+  root.userData.active = true;
+  root.userData.respawnTimer = 0;
 
   const body = ingredientGeometry(type, 0.9);
   body.position.y = 0.78;
@@ -254,26 +266,25 @@ scene.add(hog);
 harvestTargets.push(hogBody);
 
 const skewerView = new THREE.Group();
-skewerView.position.set(0.52, -0.42, -0.82);
-skewerView.rotation.set(-0.12, -0.18, -0.42);
+skewerView.position.set(0.48, -0.46, -0.05);
 camera.add(skewerView);
 const handle = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.05, 0.065, 0.38, 12),
-  new THREE.MeshStandardMaterial({ color: 0x2b120c, roughness: 0.7 }),
+  new THREE.CylinderGeometry(0.055, 0.07, 0.42, 12),
+  new THREE.MeshStandardMaterial({ color: 0x29100a, roughness: 0.72 }),
 );
-handle.rotation.z = Math.PI / 2;
-handle.position.x = -0.14;
+handle.rotation.x = Math.PI / 2;
+handle.position.set(0, 0, -0.48);
 skewerView.add(handle);
 const rod = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.012, 0.012, 1.55, 8),
-  new THREE.MeshStandardMaterial({ color: 0xd9d7cf, metalness: 0.9, roughness: 0.18 }),
+  new THREE.CylinderGeometry(0.012, 0.012, 2.72, 8),
+  new THREE.MeshStandardMaterial({ color: 0xe3e1d9, metalness: 0.92, roughness: 0.14 }),
 );
-rod.rotation.z = Math.PI / 2;
-rod.position.x = 0.78;
+rod.rotation.x = Math.PI / 2;
+rod.position.set(0, 0, -1.92);
 skewerView.add(rod);
-const tip = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.22, 8), rod.material);
-tip.rotation.z = -Math.PI / 2;
-tip.position.x = 1.65;
+const tip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.34, 10), rod.material);
+tip.rotation.x = -Math.PI / 2;
+tip.position.set(0, 0, -3.43);
 skewerView.add(tip);
 const skewerItemGroup = new THREE.Group();
 skewerView.add(skewerItemGroup);
@@ -362,6 +373,12 @@ const raycaster = new THREE.Raycaster();
 const center = new THREE.Vector2(0, 0);
 const clock = new THREE.Clock();
 let toastTimeout = 0;
+const mobileMove = new THREE.Vector2();
+let mobileLookPointer = null;
+let lastLookX = 0;
+let lastLookY = 0;
+let mobileYaw = 0;
+let mobilePitch = 0;
 
 function showToast(text, seconds = 1) {
   toastEl.textContent = text;
@@ -394,7 +411,7 @@ function rebuildSkewerView() {
   skewerItemGroup.clear();
   player.items.forEach((type, index) => {
     const mesh = ingredientGeometry(type, 0.17);
-    mesh.position.x = 0.22 + index * 0.16;
+    mesh.position.set(0, 0, -0.84 - index * 0.31);
     mesh.rotation.set(Math.random() * 0.4, Math.random() * 0.4, Math.random() * 0.4);
     skewerItemGroup.add(mesh);
   });
@@ -475,6 +492,18 @@ function loseLastIngredient(reason, worldPosition = camera.position, impulse = n
   return type;
 }
 
+function dropPlayerLast() {
+  if (!player.items.length) {
+    showToast('SKEWER IS EMPTY');
+    return;
+  }
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const position = camera.position.clone().add(direction.clone().multiplyScalar(1.0));
+  position.y -= 0.55;
+  loseLastIngredient('MANUAL DROP', position, direction.multiplyScalar(2.2));
+}
+
 function loseRivalLast(reason = 'RIVAL DROPPED') {
   if (!rival.items.length) return null;
   const type = rival.items.pop();
@@ -489,11 +518,25 @@ function loseRivalLast(reason = 'RIVAL DROPPED') {
   return type;
 }
 
-function respawnCreature(creature) {
-  const angle = Math.random() * Math.PI * 2;
-  creature.position.copy(creature.userData.home);
-  creature.position.x += Math.cos(angle) * 1.2;
-  creature.position.z += Math.sin(angle) * 1.2;
+function randomArenaPosition() {
+  let x; let z;
+  do {
+    x = THREE.MathUtils.randFloat(-ARENA_HALF + 2.2, ARENA_HALF - 2.2);
+    z = THREE.MathUtils.randFloat(-ARENA_HALF + 2.2, ARENA_HALF - 2.2);
+  } while (Math.hypot(x - grill.position.x, z - grill.position.z) < 4 || Math.hypot(x, z) < 3.2);
+  return new THREE.Vector3(x, 0, z);
+}
+
+function deactivateCreature(creature) {
+  creature.userData.active = false;
+  creature.userData.respawnTimer = THREE.MathUtils.randFloat(CREATURE_RESPAWN_MIN, CREATURE_RESPAWN_MAX);
+  creature.visible = false;
+}
+
+function reactivateCreature(creature) {
+  creature.position.copy(randomArenaPosition());
+  creature.userData.active = true;
+  creature.visible = true;
 }
 
 function handleRivalHit(object) {
@@ -525,7 +568,7 @@ function handleRivalHit(object) {
 }
 
 function thrust() {
-  if (!controls.isLocked) return;
+  if (!controls.isLocked && !MOBILE) return;
   const now = clock.elapsedTime;
   if (now - player.lastThrustAt < THRUST_COOLDOWN) return;
   player.lastThrustAt = now;
@@ -533,7 +576,8 @@ function thrust() {
 
   raycaster.setFromCamera(center, camera);
   raycaster.far = THRUST_RANGE;
-  const targets = [...rivalTargets, ...droppedTargets, ...harvestTargets];
+  const activeHarvestTargets = harvestTargets.filter((target) => target.userData.harvestRoot === hog || target.userData.harvestRoot?.userData.active !== false);
+  const targets = [...rivalTargets, ...droppedTargets, ...activeHarvestTargets];
   const hits = raycaster.intersectObjects(targets, false);
   if (!hits.length) return;
   const hit = hits[0].object;
@@ -562,7 +606,7 @@ function thrust() {
   }
 
   const type = root.userData.type;
-  if (type && addIngredient(type)) respawnCreature(root);
+  if (type && root.userData.active && addIngredient(type)) deactivateCreature(root);
 }
 
 function tryDeliver() {
@@ -583,13 +627,20 @@ function tryDeliver() {
   showToast(`🔥 ${recipe.name.toUpperCase()} +${recipe.points}`, 1.4);
 }
 
-function startGame() {
-  controls.lock();
+async function startGame() {
+  if (MOBILE) {
+    startScreen.classList.add('hidden');
+    mobileControls?.classList.remove('hidden');
+    try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch {}
+    try { if (screen.orientation?.lock) await screen.orientation.lock('landscape'); } catch {}
+  } else {
+    controls.lock();
+  }
 }
 
 startButton.addEventListener('click', startGame);
 controls.addEventListener('lock', () => startScreen.classList.add('hidden'));
-controls.addEventListener('unlock', () => startScreen.classList.remove('hidden'));
+controls.addEventListener('unlock', () => { if (!MOBILE) startScreen.classList.remove('hidden'); });
 document.addEventListener('keydown', (event) => {
   keys.add(event.code);
   if (event.code === 'Space' && controls.isLocked && player.grounded) {
@@ -597,20 +648,91 @@ document.addEventListener('keydown', (event) => {
     player.grounded = false;
   }
   if (event.code === 'KeyE') tryDeliver();
+  if (event.code === 'KeyQ') dropPlayerLast();
 });
 document.addEventListener('keyup', (event) => keys.delete(event.code));
 document.addEventListener('mousedown', (event) => {
-  if (event.button === 0) thrust();
+  if (event.button === 0 && !MOBILE) thrust();
 });
 
+function bindMobileButton(button, action) {
+  button?.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    action();
+  });
+}
+bindMobileButton(stabButton, thrust);
+bindMobileButton(dropButton, dropPlayerLast);
+bindMobileButton(useButton, tryDeliver);
+
+if (movePad) {
+  let movePointer = null;
+  const radius = 46;
+  const updateMove = (event) => {
+    const rect = movePad.getBoundingClientRect();
+    let x = event.clientX - rect.left - rect.width / 2;
+    let y = event.clientY - rect.top - rect.height / 2;
+    const length = Math.hypot(x, y) || 1;
+    if (length > radius) { x *= radius / length; y *= radius / length; }
+    mobileMove.set(x / radius, -y / radius);
+    if (moveKnob) moveKnob.style.transform = `translate(${x}px, ${y}px)`;
+  };
+  movePad.addEventListener('pointerdown', (event) => { movePointer = event.pointerId; movePad.setPointerCapture(movePointer); updateMove(event); });
+  movePad.addEventListener('pointermove', (event) => { if (event.pointerId === movePointer) updateMove(event); });
+  const endMove = (event) => {
+    if (event.pointerId !== movePointer) return;
+    movePointer = null;
+    mobileMove.set(0, 0);
+    if (moveKnob) moveKnob.style.transform = 'translate(0,0)';
+  };
+  movePad.addEventListener('pointerup', endMove);
+  movePad.addEventListener('pointercancel', endMove);
+}
+
+if (lookPad) {
+  lookPad.addEventListener('pointerdown', (event) => {
+    if (mobileLookPointer !== null) return;
+    mobileLookPointer = event.pointerId;
+    lastLookX = event.clientX;
+    lastLookY = event.clientY;
+    lookPad.setPointerCapture(event.pointerId);
+  });
+  lookPad.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== mobileLookPointer) return;
+    mobileYaw -= (event.clientX - lastLookX) * 0.0042;
+    mobilePitch = THREE.MathUtils.clamp(mobilePitch - (event.clientY - lastLookY) * 0.0036, -1.25, 1.25);
+    lastLookX = event.clientX;
+    lastLookY = event.clientY;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = mobileYaw;
+    camera.rotation.x = mobilePitch;
+  });
+  const endLook = (event) => { if (event.pointerId === mobileLookPointer) mobileLookPointer = null; };
+  lookPad.addEventListener('pointerup', endLook);
+  lookPad.addEventListener('pointercancel', endLook);
+}
+
+function updateOrientationHint() {
+  if (!MOBILE || !rotateHint) return;
+  rotateHint.classList.toggle('hidden', innerWidth >= innerHeight);
+}
+addEventListener('orientationchange', updateOrientationHint);
+updateOrientationHint();
+
 function updateMovement(dt) {
-  if (!controls.isLocked) return;
+  if (!controls.isLocked && !MOBILE) return;
   let forward = 0;
   let right = 0;
-  if (keys.has('KeyW')) forward += 1;
-  if (keys.has('KeyS')) forward -= 1;
-  if (keys.has('KeyD')) right += 1;
-  if (keys.has('KeyA')) right -= 1;
+  if (MOBILE) {
+    forward = mobileMove.y;
+    right = mobileMove.x;
+  } else {
+    if (keys.has('KeyW')) forward += 1;
+    if (keys.has('KeyS')) forward -= 1;
+    if (keys.has('KeyD')) right += 1;
+    if (keys.has('KeyA')) right -= 1;
+  }
 
   if (forward || right) {
     const length = Math.hypot(forward, right);
@@ -636,6 +758,11 @@ function updateMovement(dt) {
 
 function updateCreatures(dt, time) {
   ingredientCreatures.forEach((creature) => {
+    if (!creature.userData.active) {
+      creature.userData.respawnTimer -= dt;
+      if (creature.userData.respawnTimer <= 0) reactivateCreature(creature);
+      return;
+    }
     const phase = creature.userData.phase;
     creature.position.y = Math.sin(time * 2.2 + phase) * 0.05;
     creature.rotation.y += dt * 0.5;
@@ -757,7 +884,7 @@ function closestCreatureOfType(type) {
   let best = null;
   let bestDistance = Infinity;
   ingredientCreatures.forEach((creature) => {
-    if (creature.userData.type !== type) return;
+    if (!creature.userData.active || creature.userData.type !== type) return;
     const distance = rival.root.position.distanceTo(creature.position);
     if (distance < bestDistance) {
       bestDistance = distance;
@@ -871,7 +998,7 @@ function updateRival(dt) {
     const distance = moveRivalToward(creature.position, dt);
     if (distance < 1.35 && rival.collectCooldown <= 0) {
       rival.collectCooldown = 0.65;
-      if (addRivalIngredient(needed)) respawnCreature(creature);
+      if (addRivalIngredient(needed)) deactivateCreature(creature);
     }
   }
 }
@@ -913,14 +1040,16 @@ function updateRivalPlayerBump() {
 }
 
 function animateWeapon(dt) {
+  const baseZ = -0.05;
   if (player.thrustAnim > 0) {
-    player.thrustAnim = Math.max(0, player.thrustAnim - dt * 5.2);
+    player.thrustAnim = Math.max(0, player.thrustAnim - dt * 5.8);
     const pulse = Math.sin((1 - player.thrustAnim) * Math.PI);
-    skewerView.position.z = -0.82 - pulse * 0.48;
+    skewerView.position.z = baseZ - pulse * 0.62;
   } else {
-    skewerView.position.z += (-0.82 - skewerView.position.z) * Math.min(1, dt * 12);
+    skewerView.position.z += (baseZ - skewerView.position.z) * Math.min(1, dt * 12);
   }
-  skewerView.position.y = -0.42 + Math.sin(clock.elapsedTime * 8) * 0.006 * (keys.has('KeyW') ? 1 : 0);
+  const moving = MOBILE ? mobileMove.length() > 0.1 : keys.has('KeyW') || keys.has('KeyA') || keys.has('KeyS') || keys.has('KeyD');
+  skewerView.position.y = -0.46 + Math.sin(clock.elapsedTime * 8) * 0.008 * (moving ? 1 : 0);
 }
 
 function animate() {
