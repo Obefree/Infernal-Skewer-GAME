@@ -13,7 +13,7 @@ if (!playerId) {
   sessionStorage.setItem('infernal-player-id', playerId);
 }
 const shortId = playerId.replace(/-/g, '').slice(0, 4).toUpperCase();
-const playerName = sessionStorage.getItem('infernal-player-name') || `Chef-${shortId}`;
+let playerName = sessionStorage.getItem('infernal-player-name') || `Chef-${shortId}`;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -104,7 +104,16 @@ export function createArenaNetwork(callbacks = {}) {
   return {
     room,
     playerId,
-    playerName,
+    get playerName() { return playerName; },
+    async setPlayerName(name) {
+      const clean = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 20) || `Chef-${shortId}`;
+      playerName = clean;
+      sessionStorage.setItem('infernal-player-name', clean);
+      if (joined) {
+        try { await channel.track({ id: playerId, name: playerName, joinedAt: Date.now() }); } catch {}
+      }
+      return playerName;
+    },
     sendPlayerState(state, now = performance.now()) {
       if (!joined || now - lastStateBroadcast < 100) return;
       lastStateBroadcast = now;
