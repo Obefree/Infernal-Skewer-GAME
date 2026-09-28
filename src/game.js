@@ -509,6 +509,7 @@ const center = new THREE.Vector2(0, 0);
 const clock = new THREE.Clock();
 let toastTimeout = 0;
 const mobileMove = new THREE.Vector2();
+const mobileMoveSmoothed = new THREE.Vector2();
 let mobileYaw = 0;
 let onlineCount = 1;
 let roundEndsAt = Date.now() + 180000;
@@ -548,7 +549,7 @@ function updateHUD() {
   skewerCountEl.textContent = `Skewer: ${player.items.length}/${MAX_SKEWER}`;
   hogStateEl.textContent = hog.userData.state === 'stunned'
     ? '🐗 PINNED! 2s — STAB → 🥩'
-    : '🐗 STAB TO PUSH → PIN TO WALL FOR MEAT';
+    : '🐗 PASSIVE — STAB TO PUSH → PIN TO WALL';
   if (rivalStateEl) {
     if (botEnabled && onlineCount <= 1) {
       const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
@@ -827,7 +828,7 @@ function updateMobileAutoPitch(dt) {
       0.18,
     );
   }
-  camera.rotation.x += (desiredPitch - camera.rotation.x) * Math.min(1, dt * 7.5);
+  camera.rotation.x += (desiredPitch - camera.rotation.x) * Math.min(1, dt * 5.4);
 }
 
 function thrust() {
@@ -1044,11 +1045,13 @@ function updateMovement(dt) {
   let forward = 0;
   let right = 0;
   if (MOBILE) {
-    mobileYaw -= mobileMove.x * 2.5 * dt;
+    const smooth = Math.min(1, dt * 7.0);
+    mobileMoveSmoothed.lerp(mobileMove, smooth);
+    mobileYaw -= mobileMoveSmoothed.x * 1.75 * dt;
     camera.rotation.order = 'YXZ';
     camera.rotation.y = mobileYaw;
     updateMobileAutoPitch(dt);
-    forward = mobileMove.y;
+    forward = mobileMoveSmoothed.y * 0.82;
     right = 0;
   } else {
     if (keys.has('KeyW')) forward += 1;
@@ -1131,20 +1134,12 @@ function updateHog(dt) {
   }
 
   if (hog.userData.state === 'roam') {
+    // Passive Hog: it never initiates a charge. It only idles/wanders visually
+    // and can be displaced by player STAB hits.
+    hog.userData.velocity.set(0, 0, 0);
     hog.userData.timer -= dt;
-    hog.rotation.y += dt * 0.45;
-    if (hog.userData.timer <= 0) {
-      const targetRival = botEnabled && onlineCount <= 1 && Math.random() < 0.35;
-      hog.userData.chargeTarget = targetRival ? 'rival' : 'player';
-      const target = targetRival
-        ? new THREE.Vector3(rival.root.position.x, 0, rival.root.position.z)
-        : new THREE.Vector3(camera.position.x, 0, camera.position.z);
-      const direction = target.sub(hog.position).setY(0).normalize();
-      hog.userData.velocity.copy(direction.multiplyScalar(12.5));
-      hog.lookAt(hog.position.clone().add(direction));
-      setHogState('charge');
-      showToast(`🐗 HOG CHARGE → ${targetRival ? 'RIVAL' : 'YOU'}!`, 0.7);
-    }
+    hog.rotation.y += Math.sin(clock.elapsedTime * 0.45) * dt * 0.16;
+    if (hog.userData.timer <= 0) hog.userData.timer = THREE.MathUtils.randFloat(1.6, 3.4);
     return;
   }
 
@@ -1372,7 +1367,7 @@ function animateWeapon(dt) {
   } else {
     skewerView.position.z += (baseZ - skewerView.position.z) * Math.min(1, dt * 12);
   }
-  const moving = MOBILE ? mobileMove.length() > 0.1 : keys.has('KeyW') || keys.has('KeyA') || keys.has('KeyS') || keys.has('KeyD');
+  const moving = MOBILE ? mobileMoveSmoothed.length() > 0.1 : keys.has('KeyW') || keys.has('KeyA') || keys.has('KeyS') || keys.has('KeyD');
   skewerView.position.y = -0.46 + Math.sin(clock.elapsedTime * 8) * 0.008 * (moving ? 1 : 0);
 }
 
