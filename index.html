@@ -16,7 +16,7 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hud" class="hud">
-    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">ONLINE FPS v0.5.7</span></div><div id="score">Score: 0</div></header>
+    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">ONLINE FPS v0.5.8</span></div><div id="score">Score: 0</div></header>
     <section id="recipes" class="recipes"></section>
     <section class="right-panel">
       <div id="roundState">Round: --:--</div>
@@ -34,6 +34,7 @@
 
   <div id="mobileControls" class="mobile-controls hidden">
     <div id="movePad" class="touch-pad move-pad"><div id="moveKnob" class="touch-knob"></div><span>MOVE / TURN</span></div>
+    <div id="lookPad" class="look-pad"><span>LOOK<br>↑ ↓</span></div>
     <div class="action-stack right-actions">
       <button id="stabButton" class="action-button stab">STAB</button>
       <button id="jumpButton" class="action-button jump">JUMP</button>
@@ -48,7 +49,7 @@
     <div class="card">
       <div class="eyebrow">ONLINE HELL KITCHEN</div>
       <h1>Infernal Skewer</h1>
-      <p>Enter a name, then join the arena. Mobile: left thumb moves/turns; right thumb uses STAB / JUMP / DROP / USE.</p>
+      <p>Enter a name, then join the arena. Mobile: left thumb moves/turns; swipe LOOK vertically to aim up/down; right thumb uses STAB / JUMP / DROP / USE.</p>
       <label class="join-field">
         <span>PLAYER NAME</span>
         <input id="playerNameInput" type="text" maxlength="20" autocomplete="nickname" enterkeyhint="done" placeholder="Chef name" />

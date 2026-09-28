@@ -21,13 +21,14 @@ const stabButton = document.querySelector('#stabButton');
 const jumpButton = document.querySelector('#jumpButton');
 const dropButton = document.querySelector('#dropButton');
 const useButton = document.querySelector('#useButton');
+const lookPad = document.querySelector('#lookPad');
 const rotateHint = document.querySelector('#rotateHint');
 const playerNameInput = document.querySelector('#playerNameInput');
 const botStartToggle = document.querySelector('#botStartToggle');
 const botToggleButton = document.querySelector('#botToggleButton');
 
 const MAX_SKEWER = 8;
-const ARENA_HALF = 18;
+const ARENA_HALF = 22;
 const PLAYER_HEIGHT = 1.7;
 const PLAYER_RADIUS = 0.42;
 const WALK_SPEED = 6.2;
@@ -83,11 +84,11 @@ recipesEl.innerHTML = recipes.map((recipe) => `
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x2b0c08);
-scene.fog = new THREE.Fog(0x2b0c08, 22, 62);
+scene.fog = new THREE.Fog(0x2b0c08, 28, 76);
 
 const initialViewport = getViewportSize();
 const camera = new THREE.PerspectiveCamera(72, initialViewport.width / initialViewport.height, 0.05, 120);
-camera.position.set(0, PLAYER_HEIGHT, 13);
+camera.position.set(0, PLAYER_HEIGHT, 16);
 scene.add(camera);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -123,7 +124,7 @@ floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-const grid = new THREE.GridHelper(ARENA_HALF * 2, 24, 0x8f321f, 0x512015);
+const grid = new THREE.GridHelper(ARENA_HALF * 2, 30, 0x8f321f, 0x512015);
 grid.position.y = 0.006;
 grid.material.opacity = 0.26;
 grid.material.transparent = true;
@@ -143,7 +144,7 @@ for (const [x, z, sx, sz] of [
   scene.add(wall);
 }
 
-const pillarPositions = [[-7,-5],[7,-5],[-8,7],[8,7],[-4,1],[4,1]];
+const pillarPositions = [[-9,-7],[9,-7],[-10,9],[10,9],[-5,2],[5,2],[-15,12],[15,12]];
 for (const [x, z] of pillarPositions) {
   const pillar = new THREE.Mesh(
     new THREE.CylinderGeometry(0.75, 0.95, 4.2, 8),
@@ -154,6 +155,41 @@ for (const [x, z] of pillarPositions) {
   pillar.receiveShadow = true;
   scene.add(pillar);
 }
+
+const platformDefs = [];
+
+function addRaisedPlatform(x, z, width, depth, height, baseColor, topColor, kind = 'platform') {
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(width, height, depth),
+    new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.88 }),
+  );
+  base.position.y = height / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  group.add(base);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(Math.max(0.2, width - 0.22), 0.1, Math.max(0.2, depth - 0.22)),
+    new THREE.MeshStandardMaterial({ color: topColor, roughness: 0.96 }),
+  );
+  top.position.y = height + 0.05;
+  top.receiveShadow = true;
+  group.add(top);
+  scene.add(group);
+  const def = { x, z, width, depth, height, kind };
+  platformDefs.push(def);
+  return def;
+}
+
+// A proper second tier: high enough that the player must jump onto it.
+addRaisedPlatform(-14, 5, 7.5, 7.0, 1.15, 0x56251d, 0x8b4934, 'tier');
+
+// Raised infernal garden beds. They are low obstacles that can also be jumped onto.
+addRaisedPlatform(-14, -10, 6.8, 2.8, 0.42, 0x4d2519, 0x2d1a10, 'garden');
+addRaisedPlatform(-14, -6.2, 6.8, 2.8, 0.42, 0x4d2519, 0x2d1a10, 'garden');
+addRaisedPlatform(14, -10, 6.8, 2.8, 0.42, 0x4d2519, 0x2d1a10, 'garden');
+addRaisedPlatform(14, -6.2, 6.8, 2.8, 0.42, 0x4d2519, 0x2d1a10, 'garden');
 
 function makeLabel(text, color = '#ffffff') {
   const labelCanvas = document.createElement('canvas');
@@ -194,9 +230,10 @@ const droppedIngredients = [];
 const droppedTargets = [];
 const rivalTargets = [];
 
-function spawnIngredient(type, x, z) {
+function spawnIngredient(type, x, z, y = 0) {
   const root = new THREE.Group();
-  root.position.set(x, 0, z);
+  root.position.set(x, y, z);
+  root.userData.baseY = y;
   root.userData.type = type;
   root.userData.phase = Math.random() * Math.PI * 2;
   root.userData.active = true;
@@ -227,19 +264,19 @@ function spawnIngredient(type, x, z) {
   harvestTargets.push(body);
 }
 
-spawnIngredient('onion', -12, -8);
-spawnIngredient('onion', -10, -11);
-spawnIngredient('tomato', 12, -8);
-spawnIngredient('tomato', 10, -11);
-spawnIngredient('cheese', -12, 8);
-spawnIngredient('cheese', -9, 10);
-spawnIngredient('pepper', 12, 8);
-spawnIngredient('pepper', 9, 10);
-spawnIngredient('mushroom', -14, 0);
-spawnIngredient('mushroom', 14, 0);
+spawnIngredient('onion', -14.8, -10, 0.42);
+spawnIngredient('onion', -13.0, -6.2, 0.42);
+spawnIngredient('tomato', 14.8, -10, 0.42);
+spawnIngredient('tomato', 13.0, -6.2, 0.42);
+spawnIngredient('cheese', -14.5, 5.0, 1.15);
+spawnIngredient('cheese', -11.9, 6.5, 1.15);
+spawnIngredient('pepper', 16.5, 8.5);
+spawnIngredient('pepper', 12.0, 13.0);
+spawnIngredient('mushroom', -12.0, 3.5, 1.15);
+spawnIngredient('mushroom', 17.0, 1.0);
 
 const grill = new THREE.Group();
-grill.position.set(0, 0, 13.5);
+grill.position.set(0, 0, 17.0);
 const grillBase = new THREE.Mesh(
   new THREE.CylinderGeometry(1.65, 1.85, 1.1, 20),
   new THREE.MeshStandardMaterial({ color: 0x20100d, metalness: 0.55, roughness: 0.35 }),
@@ -518,6 +555,7 @@ let toastTimeout = 0;
 const mobileMove = new THREE.Vector2();
 const mobileMoveSmoothed = new THREE.Vector2();
 let mobileYaw = 0;
+let mobilePitch = 0;
 let onlineCount = 1;
 let roundEndsAt = Date.now() + 180000;
 let roundId = 1;
@@ -556,7 +594,7 @@ function updateHUD() {
   skewerCountEl.textContent = `Skewer: ${player.items.length}/${MAX_SKEWER}`;
   hogStateEl.textContent = hog.userData.state === 'stunned'
     ? '🐗 PINNED! 2s — STAB → 🥩'
-    : '🐗 CALM — STAB TO PUSH → PIN TO WALL';
+    : '🐗 CALM — NEVER KNOCKS FOOD · STAB → WALL';
   if (rivalStateEl) {
     if (botEnabled && onlineCount <= 1) {
       const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
@@ -715,12 +753,21 @@ function loseRivalLast(reason = 'RIVAL DROPPED') {
   return type;
 }
 
+function pointInsidePlatform(x, z, platform, margin = 0) {
+  return Math.abs(x - platform.x) <= platform.width / 2 + margin
+    && Math.abs(z - platform.z) <= platform.depth / 2 + margin;
+}
+
 function randomArenaPosition() {
   let x; let z;
   do {
     x = THREE.MathUtils.randFloat(-ARENA_HALF + 2.2, ARENA_HALF - 2.2);
     z = THREE.MathUtils.randFloat(-ARENA_HALF + 2.2, ARENA_HALF - 2.2);
-  } while (Math.hypot(x - grill.position.x, z - grill.position.z) < 4 || Math.hypot(x, z) < 3.2);
+  } while (
+    Math.hypot(x - grill.position.x, z - grill.position.z) < 4
+    || Math.hypot(x, z) < 3.2
+    || platformDefs.some((platform) => pointInsidePlatform(x, z, platform, 1.1))
+  );
   return new THREE.Vector3(x, 0, z);
 }
 
@@ -732,6 +779,7 @@ function deactivateCreature(creature) {
 
 function reactivateCreature(creature) {
   creature.position.copy(randomArenaPosition());
+  creature.userData.baseY = 0;
   creature.userData.active = true;
   creature.visible = true;
 }
@@ -960,6 +1008,7 @@ async function startGame() {
     setTimeout(resizeViewport, 120);
     setTimeout(resizeViewport, 350);
     mobileYaw = camera.rotation.y;
+    mobilePitch = camera.rotation.x;
   } else {
     controls.lock();
   }
@@ -1018,25 +1067,80 @@ bindMobileButton(useButton, tryDeliver);
 if (movePad) {
   let movePointer = null;
   const radius = 46;
+  const resetMove = () => {
+    movePointer = null;
+    mobileMove.set(0, 0);
+    mobileMoveSmoothed.set(0, 0);
+    if (moveKnob) moveKnob.style.transform = 'translate(0,0)';
+  };
   const updateMove = (event) => {
     const rect = movePad.getBoundingClientRect();
     let x = event.clientX - rect.left - rect.width / 2;
     let y = event.clientY - rect.top - rect.height / 2;
     const length = Math.hypot(x, y) || 1;
     if (length > radius) { x *= radius / length; y *= radius / length; }
-    mobileMove.set(x / radius, -y / radius);
+    let nx = x / radius;
+    let ny = -y / radius;
+    if (Math.hypot(nx, ny) < 0.14) {
+      x = 0; y = 0; nx = 0; ny = 0;
+    }
+    mobileMove.set(nx, ny);
     if (moveKnob) moveKnob.style.transform = `translate(${x}px, ${y}px)`;
   };
-  movePad.addEventListener('pointerdown', (event) => { movePointer = event.pointerId; movePad.setPointerCapture(movePointer); updateMove(event); });
-  movePad.addEventListener('pointermove', (event) => { if (event.pointerId === movePointer) updateMove(event); });
+  movePad.addEventListener('pointerdown', (event) => {
+    if (movePointer !== null) return;
+    event.preventDefault();
+    movePointer = event.pointerId;
+    try { movePad.setPointerCapture(movePointer); } catch {}
+    updateMove(event);
+  });
+  movePad.addEventListener('pointermove', (event) => {
+    if (event.pointerId === movePointer) updateMove(event);
+  });
   const endMove = (event) => {
-    if (event.pointerId !== movePointer) return;
-    movePointer = null;
-    mobileMove.set(0, 0);
-    if (moveKnob) moveKnob.style.transform = 'translate(0,0)';
+    if (movePointer === null) return;
+    if (event?.pointerId != null && event.pointerId !== movePointer) return;
+    resetMove();
   };
   movePad.addEventListener('pointerup', endMove);
   movePad.addEventListener('pointercancel', endMove);
+  movePad.addEventListener('lostpointercapture', resetMove);
+  window.addEventListener('pointerup', endMove, { passive: true });
+  window.addEventListener('pointercancel', endMove, { passive: true });
+  window.addEventListener('blur', resetMove);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) resetMove(); });
+}
+
+if (lookPad) {
+  let lookPointer = null;
+  let lastY = 0;
+  const stopLook = (event) => {
+    if (lookPointer === null) return;
+    if (event?.pointerId != null && event.pointerId !== lookPointer) return;
+    lookPointer = null;
+    lookPad.classList.remove('active');
+  };
+  lookPad.addEventListener('pointerdown', (event) => {
+    if (lookPointer !== null) return;
+    event.preventDefault();
+    lookPointer = event.pointerId;
+    lastY = event.clientY;
+    lookPad.classList.add('active');
+    try { lookPad.setPointerCapture(lookPointer); } catch {}
+  });
+  lookPad.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== lookPointer) return;
+    event.preventDefault();
+    const dy = event.clientY - lastY;
+    lastY = event.clientY;
+    mobilePitch = THREE.MathUtils.clamp(mobilePitch - dy * 0.0052, -0.82, 0.62);
+    camera.rotation.x = mobilePitch;
+  });
+  lookPad.addEventListener('pointerup', stopLook);
+  lookPad.addEventListener('pointercancel', stopLook);
+  lookPad.addEventListener('lostpointercapture', () => stopLook());
+  window.addEventListener('pointerup', stopLook, { passive: true });
+  window.addEventListener('pointercancel', stopLook, { passive: true });
 }
 
 function updateOrientationHint() {
@@ -1105,8 +1209,47 @@ function resolvePlayerWorldCollisions() {
   camera.position.z = THREE.MathUtils.clamp(camera.position.z, -limit, limit);
 }
 
+function resolveRaisedPlatformSides(previousX, previousZ) {
+  for (const platform of platformDefs) {
+    const margin = PLAYER_RADIUS;
+    if (!pointInsidePlatform(camera.position.x, camera.position.z, platform, margin)) continue;
+    const topCameraY = PLAYER_HEIGHT + platform.height;
+    // Once the player's feet are high enough, allow horizontal entry so they can land on top.
+    if (camera.position.y >= topCameraY - 0.08) continue;
+
+    const wasOutside = !pointInsidePlatform(previousX, previousZ, platform, margin);
+    if (wasOutside) {
+      camera.position.x = previousX;
+      camera.position.z = previousZ;
+      continue;
+    }
+
+    const left = Math.abs(camera.position.x - (platform.x - platform.width / 2 - margin));
+    const right = Math.abs((platform.x + platform.width / 2 + margin) - camera.position.x);
+    const front = Math.abs(camera.position.z - (platform.z - platform.depth / 2 - margin));
+    const back = Math.abs((platform.z + platform.depth / 2 + margin) - camera.position.z);
+    const smallest = Math.min(left, right, front, back);
+    if (smallest === left) camera.position.x = platform.x - platform.width / 2 - margin;
+    else if (smallest === right) camera.position.x = platform.x + platform.width / 2 + margin;
+    else if (smallest === front) camera.position.z = platform.z - platform.depth / 2 - margin;
+    else camera.position.z = platform.z + platform.depth / 2 + margin;
+  }
+}
+
+function groundHeightAt(x, z) {
+  let ground = PLAYER_HEIGHT;
+  for (const platform of platformDefs) {
+    if (pointInsidePlatform(x, z, platform, -0.05)) {
+      ground = Math.max(ground, PLAYER_HEIGHT + platform.height);
+    }
+  }
+  return ground;
+}
+
 function updateMovement(dt) {
   if (!controls.isLocked && !MOBILE) return;
+  const previousX = camera.position.x;
+  const previousZ = camera.position.z;
   let forward = 0;
   let right = 0;
   if (MOBILE) {
@@ -1115,7 +1258,7 @@ function updateMovement(dt) {
     mobileYaw -= mobileMoveSmoothed.x * 1.75 * dt;
     camera.rotation.order = 'YXZ';
     camera.rotation.y = mobileYaw;
-    updateMobileAutoPitch(dt);
+    camera.rotation.x = mobilePitch;
     forward = mobileMoveSmoothed.y * 0.82;
     right = 0;
   } else {
@@ -1134,15 +1277,19 @@ function updateMovement(dt) {
     controls.moveRight(right * speed * dt);
   }
 
+  resolvePlayerWorldCollisions();
+  resolveRaisedPlatformSides(previousX, previousZ);
+
   player.velocityY -= GRAVITY * dt;
   camera.position.y += player.velocityY * dt;
-  if (camera.position.y <= PLAYER_HEIGHT) {
-    camera.position.y = PLAYER_HEIGHT;
+  const groundHeight = groundHeightAt(camera.position.x, camera.position.z);
+  if (player.velocityY <= 0 && camera.position.y <= groundHeight) {
+    camera.position.y = groundHeight;
     player.velocityY = 0;
     player.grounded = true;
+  } else if (camera.position.y > groundHeight + 0.03) {
+    player.grounded = false;
   }
-
-  resolvePlayerWorldCollisions();
 }
 
 function updateCreatures(dt, time) {
@@ -1153,7 +1300,7 @@ function updateCreatures(dt, time) {
       return;
     }
     const phase = creature.userData.phase;
-    creature.position.y = Math.sin(time * 2.2 + phase) * 0.05;
+    creature.position.y = (creature.userData.baseY || 0) + Math.sin(time * 2.2 + phase) * 0.05;
     creature.rotation.y += dt * 0.5;
 
     const playerDx = camera.position.x - creature.position.x;
