@@ -50,6 +50,8 @@ function getViewportSize() {
   return {
     width: Math.max(1, Math.round(vv?.width || innerWidth)),
     height: Math.max(1, Math.round(vv?.height || innerHeight)),
+    left: Math.round(vv?.offsetLeft || 0),
+    top: Math.round(vv?.offsetTop || 0),
   };
 }
 
@@ -944,12 +946,27 @@ async function startGame() {
   if (MOBILE) {
     startScreen.classList.add('hidden');
     mobileControls?.classList.remove('hidden');
-    try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch {}
+    try {
+      const fs = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+      if (fs) await fs.call(document.documentElement);
+    } catch {}
     try { if (screen.orientation?.lock) await screen.orientation.lock('landscape'); } catch {}
+    resizeViewport();
+    setTimeout(resizeViewport, 120);
+    setTimeout(resizeViewport, 350);
     mobileYaw = camera.rotation.y;
   } else {
     controls.lock();
   }
+}
+
+// iOS Safari can still try gesture zoom even with viewport meta settings.
+// Prevent it so the game always stays fitted to the current rotated viewport.
+if (MOBILE) {
+  for (const eventName of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(eventName, (event) => event.preventDefault(), { passive: false });
+  }
+  document.addEventListener('dblclick', (event) => event.preventDefault(), { passive: false });
 }
 
 startButton.addEventListener('click', startGame);
@@ -1414,8 +1431,12 @@ function animate() {
 }
 
 function resizeViewport() {
-  const { width, height } = getViewportSize();
-  document.documentElement.style.setProperty('--app-h', `${height}px`);
+  const { width, height, left, top } = getViewportSize();
+  const rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--app-w', `${width}px`);
+  rootStyle.setProperty('--app-h', `${height}px`);
+  rootStyle.setProperty('--app-x', `${left}px`);
+  rootStyle.setProperty('--app-y', `${top}px`);
   camera.aspect = width / height;
   camera.fov = MOBILE && width / height > 1.95 ? 65 : 72;
   camera.updateProjectionMatrix();
