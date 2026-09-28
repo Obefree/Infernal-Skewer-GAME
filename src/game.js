@@ -66,13 +66,17 @@ const ingredientDefs = {
 
 const recipes = [
   { name: 'Imp Snack', items: ['meat', 'onion'], points: 100 },
+  { name: 'Garden Bite', items: ['onion', 'tomato', 'mushroom'], points: 180, vegan: true },
   { name: 'Hell Classic', items: ['meat', 'onion', 'tomato'], points: 220 },
+  { name: 'Cheese Curse', items: ['cheese', 'tomato', 'pepper'], points: 260 },
+  { name: 'Fire Garden', items: ['pepper', 'tomato', 'mushroom', 'onion'], points: 340, vegan: true },
   { name: "Devil's Stack", items: ['meat', 'pepper', 'cheese', 'meat'], points: 500 },
+  { name: "Glutton's Spear", items: ['meat', 'onion', 'tomato', 'mushroom', 'pepper', 'cheese', 'meat', 'onion'], points: 950 },
 ];
 
 recipesEl.innerHTML = recipes.map((recipe) => `
   <div class="recipe">
-    <div class="recipe-row"><strong>${recipe.name}</strong><span class="recipe-points">${recipe.points}</span></div>
+    <div class="recipe-row"><strong>${recipe.vegan ? '🌱 ' : ''}${recipe.name}</strong><span class="recipe-points">${recipe.points}</span></div>
     <div class="recipe-items">${recipe.items.map((type) => ingredientDefs[type].emoji).join(' ')}</div>
   </div>
 `).join('');
@@ -551,7 +555,7 @@ function updateHUD() {
   skewerCountEl.textContent = `Skewer: ${player.items.length}/${MAX_SKEWER}`;
   hogStateEl.textContent = hog.userData.state === 'stunned'
     ? '🐗 PINNED! 2s — STAB → 🥩'
-    : '🐗 PASSIVE — STAB TO PUSH → PIN TO WALL';
+    : '🐗 CALM — STAB TO PUSH → PIN TO WALL';
   if (rivalStateEl) {
     if (botEnabled && onlineCount <= 1) {
       const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
@@ -1139,62 +1143,26 @@ function setHogState(state) {
 function updateHog(dt) {
   hog.userData.harvestCooldown = Math.max(0, hog.userData.harvestCooldown - dt);
 
+  // Mega Hog is deliberately NON-AGGRESSIVE in this prototype.
+  // No charge state, no player collision damage, no knockback and no ingredient loss.
+  hog.userData.velocity.set(0, 0, 0);
+
   if (hog.userData.state === 'stunned') {
     hog.userData.stun -= dt;
     hog.rotation.z = Math.sin(clock.elapsedTime * 18) * 0.05;
     if (hog.userData.stun <= 0) {
       hog.rotation.z = 0;
-      hog.userData.timer = 1.4;
+      hog.userData.timer = THREE.MathUtils.randFloat(1.6, 3.4);
       setHogState('roam');
     }
     return;
   }
 
-  if (hog.userData.state === 'roam') {
-    // Passive Hog: it never initiates a charge. It only idles/wanders visually
-    // and can be displaced by player STAB hits.
-    hog.userData.velocity.set(0, 0, 0);
-    hog.userData.timer -= dt;
-    hog.rotation.y += Math.sin(clock.elapsedTime * 0.45) * dt * 0.16;
-    if (hog.userData.timer <= 0) hog.userData.timer = THREE.MathUtils.randFloat(1.6, 3.4);
-    return;
-  }
-
-  hog.position.addScaledVector(hog.userData.velocity, dt);
-
-  const hitWall = Math.abs(hog.position.x) > ARENA_HALF - 1.8 || Math.abs(hog.position.z) > ARENA_HALF - 1.8;
-  if (hitWall) {
-    hog.position.x = THREE.MathUtils.clamp(hog.position.x, -ARENA_HALF + 1.8, ARENA_HALF - 1.8);
-    hog.position.z = THREE.MathUtils.clamp(hog.position.z, -ARENA_HALF + 1.8, ARENA_HALF - 1.8);
-    hog.userData.velocity.set(0, 0, 0);
-    hog.userData.timer = 1.15;
-    setHogState('roam');
-    return;
-  }
-
-  const pdx = camera.position.x - hog.position.x;
-  const pdz = camera.position.z - hog.position.z;
-  if (Math.hypot(pdx, pdz) < 1.65) {
-    const knock = new THREE.Vector3(pdx, 0, pdz).normalize().multiplyScalar(2.5);
-    camera.position.add(knock);
-    player.velocityY = Math.max(player.velocityY, 3.5);
-    player.grounded = false;
-    loseLastIngredient('HOG KNOCKED OFF', camera.position, knock.clone().multiplyScalar(0.8));
-    hog.userData.timer = 2.8;
-    setHogState('roam');
-    return;
-  }
-
-  const rdx = rival.root.position.x - hog.position.x;
-  const rdz = rival.root.position.z - hog.position.z;
-  if (botEnabled && onlineCount <= 1 && Math.hypot(rdx, rdz) < 1.8) {
-    const knock = new THREE.Vector3(rdx, 0, rdz).normalize().multiplyScalar(2.2);
-    rival.root.position.add(knock);
-    loseRivalLast('HOG KNOCKED RIVAL');
-    rival.stagger = 0.8;
-    hog.userData.timer = 2.8;
-    setHogState('roam');
-  }
+  // Force any stale/legacy state back to passive roam immediately.
+  if (hog.userData.state !== 'roam') setHogState('roam');
+  hog.userData.timer -= dt;
+  hog.rotation.y += Math.sin(clock.elapsedTime * 0.45) * dt * 0.12;
+  if (hog.userData.timer <= 0) hog.userData.timer = THREE.MathUtils.randFloat(1.6, 3.4);
 }
 
 function recipePrefixMatches(items, recipe) {

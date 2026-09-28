@@ -55,9 +55,9 @@ button { pointer-events: auto; border: 0; border-radius: 12px; padding: 14px 22p
 
 @media (pointer: coarse), (max-width: 900px) {
   .recipes { width: 178px; top: max(45px, calc(env(safe-area-inset-top) + 34px)); left: max(8px, env(safe-area-inset-left)); gap: 4px; }
-  .recipe { padding: 5px 7px; border-radius: 8px; }
-  .recipe-row { font-size: 9px; }
-  .recipe-items { font-size: 14px; letter-spacing: 1px; margin-top: 1px; }
+  .recipe { padding: 4px 6px; border-radius: 8px; }
+  .recipe-row { font-size: 8.5px; }
+  .recipe-items { font-size: 12px; letter-spacing: 0; margin-top: 1px; }
   .right-panel { top: max(45px, calc(env(safe-area-inset-top) + 34px)); right: max(8px, env(safe-area-inset-right)); font-size: 9px; line-height: 1.4; max-width: 175px; }
   .bot-toggle { font-size: 9px; padding: 6px 8px; }
   .topbar { top: max(7px, env(safe-area-inset-top)); font-size: 12px; }
@@ -78,8 +78,7 @@ button { pointer-events: auto; border: 0; border-radius: 12px; padding: 14px 22p
 
 @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
   .topbar { font-size: 11px; }
-  .recipes { top: max(38px, calc(env(safe-area-inset-top) + 29px)); width: 150px; }
-  .recipe:nth-child(n+3) { display: none; }
+  .recipes { top: max(36px, calc(env(safe-area-inset-top) + 27px)); width: 158px; gap: 2px; }
   .right-panel { top: max(38px, calc(env(safe-area-inset-top) + 29px)); max-width: 150px; font-size: 8.5px; }
   .touch-pad { width: 112px; height: 112px; }
   .touch-knob { width: 48px; height: 48px; }
