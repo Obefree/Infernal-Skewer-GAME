@@ -2,59 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#140503" />
-  <title>Infernal Skewer — Browser Prototype</title>
+  <title>Infernal Skewer — FPS Prototype</title>
   <link rel="stylesheet" href="./styles.css" />
   <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
-    }
-  }
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}
   </script>
 </head>
 <body>
   <canvas id="game"></canvas>
-
   <div id="hud" class="hud">
-    <header class="topbar">
-      <div>
-        <strong>INFERNAL SKEWER</strong>
-        <span class="muted">browser prototype v0.3</span>
-      </div>
-      <div id="score">Score: 0</div>
-    </header>
-
+    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">FPS v0.4</span></div><div id="score">Score: 0</div></header>
     <section id="recipes" class="recipes"></section>
-
-    <section class="right-panel">
-      <div id="hogState">Mega Hog: roaming</div>
-      <div id="skewerCount">Skewer: 0/8</div>
-      <div id="rivalState">Rival: — (0/8)</div>
-    </section>
-
+    <section class="right-panel"><div id="hogState">Mega Hog: roaming</div><div id="skewerCount">Skewer: 0/8</div><div id="rivalState">Rival: — (0/8)</div></section>
     <div id="crosshair" class="crosshair">+</div>
     <div id="toast" class="toast hidden"></div>
-
     <div id="slots" class="slots"></div>
-
-    <footer class="controls">
-      WASD move · mouse look · Space jump · Shift sprint · LMB thrust · E grill
-    </footer>
+    <footer class="controls">WASD move · mouse look · Space jump · Shift sprint · LMB thrust · Q drop · E grill</footer>
   </div>
+
+  <div id="mobileControls" class="mobile-controls hidden">
+    <div id="movePad" class="touch-pad move-pad"><div id="moveKnob" class="touch-knob"></div><span>MOVE</span></div>
+    <div id="lookPad" class="look-pad"><span>LOOK</span></div>
+    <div class="action-stack left-actions">
+      <button id="stabButton" class="action-button stab">STAB</button>
+      <button id="dropButton" class="action-button drop">DROP</button>
+      <button id="useButton" class="action-button use">USE</button>
+    </div>
+  </div>
+
+  <div id="rotateHint" class="rotate-hint hidden">↻ Rotate phone to landscape</div>
 
   <div id="start" class="start-screen">
     <div class="card">
       <div class="eyebrow">HELL KITCHEN PROTOTYPE</div>
       <h1>Infernal Skewer</h1>
-      <p>Stab living ingredients. Build a recipe directly on your weapon. Bait the Mega Hog into a wall to harvest meat. Fight the Rival Chef for exposed ingredients.</p>
-      <button id="startButton">ENTER THE KITCHEN</button>
-      <p class="hint">WASD · mouse · Space jump · Shift sprint · LMB stab · E grill</p>
+      <p>Stab living ingredients. They disappear, then respawn elsewhere. Build up to 8 pieces, drop the exposed piece when needed, and fight the Rival Chef.</p>
+      <button id="startButton">ENTER FPS KITCHEN</button>
+      <a class="mode-link" href="./topdown.html">Try top-down mobile demo →</a>
+      <p class="hint">Desktop: WASD · mouse · Space · LMB · Q drop · E use</p>
     </div>
   </div>
-
   <script type="module" src="./src/game.js"></script>
 </body>
 </html>
