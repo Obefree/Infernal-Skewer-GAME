@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#140503" />
+  <title>Infernal Skewer — Top-down Touch Demo</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
+</head>
+<body class="topdown-mode">
+  <canvas id="game"></canvas>
+  <div class="hud">
+    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">TOP-DOWN TOUCH DEMO</span></div><div id="score">Score: 0</div></header>
+    <div id="toast" class="toast hidden"></div>
+    <div id="slots" class="slots"></div>
+  </div>
+  <div class="topdown-mobile-controls">
+    <div class="action-stack topdown-actions">
+      <button id="stabButton" class="action-button stab">STAB</button>
+      <button id="dropButton" class="action-button drop">DROP</button>
+      <button id="useButton" class="action-button use">USE</button>
+    </div>
+    <div id="movePad" class="touch-pad topdown-move"><div id="moveKnob" class="touch-knob"></div><span>MOVE</span></div>
+  </div>
+  <div id="rotateHint" class="rotate-hint hidden">↻ Rotate phone to landscape</div>
+  <div id="start" class="start-screen">
+    <div class="card">
+      <div class="eyebrow">MOBILE CONTROL EXPERIMENT</div>
+      <h1>Top-down Kitchen</h1>
+      <p>Right thumb controls movement direction. Left thumb uses STAB / DROP / USE.</p>
+      <button id="startButton">START TOP-DOWN</button>
+      <a class="mode-link" href="./index.html">← Back to FPS demo</a>
+      <p class="hint">Desktop fallback: WASD · Space stab · Q drop · E use</p>
+    </div>
+  </div>
+  <script type="module" src="./src/topdown.js"></script>
+</body>
+</html>
