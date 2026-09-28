@@ -4,15 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#140503" />
-  <title>Infernal Skewer — Online Top-down Arena</title>
+  <title>Infernal Skewer — Top-down Touch Demo</title>
   <link rel="stylesheet" href="./styles.css" />
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","@supabase/supabase-js":"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm"}}</script>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}</script>
 </head>
 <body class="topdown-mode">
   <canvas id="game"></canvas>
   <div class="hud">
-    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">ONLINE TOP-DOWN v0.5</span></div><div id="score">Score: 0</div></header>
-    <section class="right-panel compact-online"><div id="roundState">Round: --:--</div><div id="onlineState">Online: 1 · room public</div></section>
+    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">TOP-DOWN TOUCH DEMO</span></div><div id="score">Score: 0</div></header>
     <div id="toast" class="toast hidden"></div>
     <div id="slots" class="slots"></div>
   </div>
@@ -27,12 +26,12 @@
   <div id="rotateHint" class="rotate-hint hidden">↻ Rotate phone to landscape</div>
   <div id="start" class="start-screen">
     <div class="card">
-      <div class="eyebrow">ONLINE MOBILE ARENA</div>
+      <div class="eyebrow">MOBILE CONTROL EXPERIMENT</div>
       <h1>Top-down Kitchen</h1>
-      <p>Left thumb controls movement and facing. Right thumb uses STAB / DROP / USE. Everyone in the same room appears on the same arena.</p>
-      <button id="startButton">JOIN PUBLIC ARENA</button>
-      <a class="mode-link" href="./index.html">← Back to FPS demo</a>
-      <p class="hint">Share this URL, or use ?room=NAME for a private test room.</p>
+      <p>Left thumb controls movement and facing. Right thumb uses STAB / DROP / USE. This page is still a local control demo; multiplayer is currently in FPS mode.</p>
+      <button id="startButton">START TOP-DOWN</button>
+      <a class="mode-link" href="./index.html">← Join online FPS arena</a>
+      <p class="hint">Desktop fallback: WASD · Space stab · Q drop · E use</p>
     </div>
   </div>
   <script type="module" src="./src/topdown.js"></script>
