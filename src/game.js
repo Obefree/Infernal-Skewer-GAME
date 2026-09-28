@@ -22,6 +22,9 @@ const jumpButton = document.querySelector('#jumpButton');
 const dropButton = document.querySelector('#dropButton');
 const useButton = document.querySelector('#useButton');
 const rotateHint = document.querySelector('#rotateHint');
+const playerNameInput = document.querySelector('#playerNameInput');
+const botStartToggle = document.querySelector('#botStartToggle');
+const botToggleButton = document.querySelector('#botToggleButton');
 
 const MAX_SKEWER = 8;
 const ARENA_HALF = 18;
@@ -37,6 +40,18 @@ const DROP_LIFETIME = 18;
 const CREATURE_RESPAWN_MIN = 3;
 const CREATURE_RESPAWN_MAX = 6;
 const MOBILE = matchMedia('(pointer: coarse)').matches || innerWidth < 900;
+let gameStarted = false;
+let botEnabled = localStorage.getItem('infernal-bot-enabled') === '1';
+if (playerNameInput) playerNameInput.value = sessionStorage.getItem('infernal-player-name') || '';
+if (botStartToggle) botStartToggle.checked = botEnabled;
+
+function getViewportSize() {
+  const vv = window.visualViewport;
+  return {
+    width: Math.max(1, Math.round(vv?.width || innerWidth)),
+    height: Math.max(1, Math.round(vv?.height || innerHeight)),
+  };
+}
 
 const ingredientDefs = {
   meat: { emoji: '🥩', color: 0x8e2c25, shape: 'cube' },
@@ -61,28 +76,31 @@ recipesEl.innerHTML = recipes.map((recipe) => `
 `).join('');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x160503);
-scene.fog = new THREE.Fog(0x160503, 15, 48);
+scene.background = new THREE.Color(0x2b0c08);
+scene.fog = new THREE.Fog(0x2b0c08, 22, 62);
 
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 120);
+const initialViewport = getViewportSize();
+const camera = new THREE.PerspectiveCamera(72, initialViewport.width / initialViewport.height, 0.05, 120);
 camera.position.set(0, PLAYER_HEIGHT, 13);
 scene.add(camera);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(initialViewport.width, initialViewport.height, false);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.25;
+renderer.toneMappingExposure = 1.62;
 
 const controls = new PointerLockControls(camera, document.body);
 controls.pointerSpeed = 0.9;
 
-const hemi = new THREE.HemisphereLight(0xffb08b, 0x180504, 2.1);
+const hemi = new THREE.HemisphereLight(0xffcfb6, 0x35120c, 3.25);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xffd2b2, 2.6);
+const ambient = new THREE.AmbientLight(0xffc7ad, 0.72);
+scene.add(ambient);
+const sun = new THREE.DirectionalLight(0xffe2c8, 3.7);
 sun.position.set(7, 15, 4);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
@@ -93,7 +111,7 @@ scene.add(lavaLight);
 
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(ARENA_HALF * 2, ARENA_HALF * 2),
-  new THREE.MeshStandardMaterial({ color: 0x32100b, roughness: 0.92, metalness: 0.05 }),
+  new THREE.MeshStandardMaterial({ color: 0x512017, roughness: 0.9, metalness: 0.04 }),
 );
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
@@ -105,7 +123,7 @@ grid.material.opacity = 0.26;
 grid.material.transparent = true;
 scene.add(grid);
 
-const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a1710, roughness: 0.78 });
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x6a291e, roughness: 0.76 });
 for (const [x, z, sx, sz] of [
   [0, -ARENA_HALF, ARENA_HALF * 2 + 1, 1],
   [0, ARENA_HALF, ARENA_HALF * 2 + 1, 1],
@@ -122,7 +140,7 @@ for (const [x, z, sx, sz] of [
 for (const [x, z] of [[-7,-5],[7,-5],[-8,7],[8,7],[-4,1],[4,1]]) {
   const pillar = new THREE.Mesh(
     new THREE.CylinderGeometry(0.75, 0.95, 4.2, 8),
-    new THREE.MeshStandardMaterial({ color: 0x5a1d13, roughness: 0.82 }),
+    new THREE.MeshStandardMaterial({ color: 0x783126, roughness: 0.8 }),
   );
   pillar.position.set(x, 2.1, z);
   pillar.castShadow = true;
@@ -506,6 +524,16 @@ function currentRivalRecipe() {
   return recipes[rival.recipeIndex % recipes.length];
 }
 
+function setBotEnabled(enabled, announce = true) {
+  botEnabled = Boolean(enabled);
+  localStorage.setItem('infernal-bot-enabled', botEnabled ? '1' : '0');
+  if (botStartToggle) botStartToggle.checked = botEnabled;
+  rival.root.visible = botEnabled && onlineCount <= 1;
+  if (botToggleButton) botToggleButton.textContent = `BOT: ${botEnabled ? 'ON' : 'OFF'}`;
+  updateHUD();
+  if (announce) showToast(botEnabled ? '😈 RIVAL BOT ON' : 'BOT OFF — SOLO ARENA', 0.9);
+}
+
 function updateHUD() {
   slotsEl.innerHTML = '';
   for (let i = 0; i < MAX_SKEWER; i += 1) {
@@ -514,15 +542,22 @@ function updateHUD() {
     slot.textContent = player.items[i] ? ingredientDefs[player.items[i]].emoji : '·';
     slotsEl.appendChild(slot);
   }
-  scoreEl.textContent = onlineCount > 1 ? `You: ${player.score} · Online: ${onlineCount}` : `You: ${player.score} · Rival: ${rival.score}`;
+  scoreEl.textContent = onlineCount > 1
+    ? `You: ${player.score} · Online: ${onlineCount}`
+    : (botEnabled ? `You: ${player.score} · Bot: ${rival.score}` : `You: ${player.score}`);
   skewerCountEl.textContent = `Skewer: ${player.items.length}/${MAX_SKEWER}`;
   hogStateEl.textContent = hog.userData.state === 'stunned'
     ? '🐗 PINNED! 2s — STAB → 🥩'
     : '🐗 STAB TO PUSH → PIN TO WALL FOR MEAT';
   if (rivalStateEl) {
-    const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
-    rivalStateEl.textContent = `Rival: ${itemText} (${rival.items.length}/8)`;
+    if (botEnabled && onlineCount <= 1) {
+      const itemText = rival.items.map((type) => ingredientDefs[type].emoji).join('') || '—';
+      rivalStateEl.textContent = `Bot: ${itemText} (${rival.items.length}/8)`;
+    } else {
+      rivalStateEl.textContent = onlineCount > 1 ? 'Bot hidden — real players online' : 'Bot: OFF';
+    }
   }
+  if (botToggleButton) botToggleButton.textContent = `BOT: ${botEnabled ? 'ON' : 'OFF'}`;
 }
 
 function rebuildSkewerView() {
@@ -735,7 +770,7 @@ function getMobileAssistTarget(maxRange = 4.0) {
   );
   const candidates = [
     ...networkTargets,
-    ...(onlineCount <= 1 ? rivalTargets : []),
+    ...(botEnabled && onlineCount <= 1 ? rivalTargets : []),
     ...droppedTargets,
     ...activeHarvestTargets,
   ];
@@ -813,7 +848,7 @@ function thrust() {
     raycaster.setFromCamera(center, camera);
     raycaster.far = THRUST_RANGE;
     const activeHarvestTargets = harvestTargets.filter((target) => target.userData.harvestRoot === hog || target.userData.harvestRoot?.userData.active !== false);
-    const targets = [...networkTargets, ...rivalTargets, ...droppedTargets, ...activeHarvestTargets];
+    const targets = [...networkTargets, ...(botEnabled && onlineCount <= 1 ? rivalTargets : []), ...droppedTargets, ...activeHarvestTargets];
     const hits = raycaster.intersectObjects(targets, false);
     if (!hits.length) return;
     hit = hits[0].object;
@@ -895,6 +930,16 @@ function tryDeliver() {
 }
 
 async function startGame() {
+  const requestedName = playerNameInput?.value.trim() || '';
+  if (!requestedName) {
+    playerNameInput?.focus();
+    playerNameInput?.setAttribute('placeholder', 'Enter your name first');
+    return;
+  }
+  await network?.setPlayerName(requestedName);
+  gameStarted = true;
+  setBotEnabled(Boolean(botStartToggle?.checked), false);
+
   if (MOBILE) {
     startScreen.classList.add('hidden');
     mobileControls?.classList.remove('hidden');
@@ -907,6 +952,13 @@ async function startGame() {
 }
 
 startButton.addEventListener('click', startGame);
+botToggleButton?.addEventListener('click', () => setBotEnabled(!botEnabled));
+playerNameInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    startGame();
+  }
+});
 controls.addEventListener('lock', () => startScreen.classList.add('hidden'));
 controls.addEventListener('unlock', () => { if (!MOBILE) startScreen.classList.remove('hidden'); });
 document.addEventListener('keydown', (event) => {
@@ -967,7 +1019,8 @@ if (movePad) {
 function updateOrientationHint() {
   if (!MOBILE || !rotateHint) return;
   const orientationType = screen.orientation?.type || '';
-  const landscape = innerWidth >= innerHeight || orientationType.startsWith('landscape');
+  const viewport = getViewportSize();
+  const landscape = viewport.width >= viewport.height || orientationType.startsWith('landscape');
   rotateHint.classList.toggle('hidden', landscape);
 }
 
@@ -1040,9 +1093,10 @@ function updateCreatures(dt, time) {
     const playerDx = camera.position.x - creature.position.x;
     const playerDz = camera.position.z - creature.position.z;
     const playerDistance = Math.hypot(playerDx, playerDz);
+    const rivalActive = botEnabled && onlineCount <= 1;
     const rivalDx = rival.root.position.x - creature.position.x;
     const rivalDz = rival.root.position.z - creature.position.z;
-    const rivalDistance = Math.hypot(rivalDx, rivalDz);
+    const rivalDistance = rivalActive ? Math.hypot(rivalDx, rivalDz) : Infinity;
 
     if (playerDistance < 3.8 && playerDistance > 0.01) {
       creature.position.x -= (playerDx / playerDistance) * dt * 0.7;
@@ -1080,7 +1134,7 @@ function updateHog(dt) {
     hog.userData.timer -= dt;
     hog.rotation.y += dt * 0.45;
     if (hog.userData.timer <= 0) {
-      const targetRival = Math.random() < 0.35;
+      const targetRival = botEnabled && onlineCount <= 1 && Math.random() < 0.35;
       hog.userData.chargeTarget = targetRival ? 'rival' : 'player';
       const target = targetRival
         ? new THREE.Vector3(rival.root.position.x, 0, rival.root.position.z)
@@ -1121,7 +1175,7 @@ function updateHog(dt) {
 
   const rdx = rival.root.position.x - hog.position.x;
   const rdz = rival.root.position.z - hog.position.z;
-  if (Math.hypot(rdx, rdz) < 1.8) {
+  if (botEnabled && onlineCount <= 1 && Math.hypot(rdx, rdz) < 1.8) {
     const knock = new THREE.Vector3(rdx, 0, rdz).normalize().multiplyScalar(2.2);
     rival.root.position.add(knock);
     loseRivalLast('HOG KNOCKED RIVAL');
@@ -1325,7 +1379,9 @@ function animateWeapon(dt) {
 
 function updateOnline(dt) {
   network?.update(Date.now());
-  network?.sendPlayerState({ x: camera.position.x, z: camera.position.z, yaw: camera.rotation.y, items: player.items, score: player.score });
+  if (gameStarted) {
+    network?.sendPlayerState({ x: camera.position.x, z: camera.position.z, yaw: camera.rotation.y, items: player.items, score: player.score });
+  }
   updateRemotePlayers(dt);
   const remaining = Math.max(0, roundEndsAt - Date.now());
   const seconds = Math.ceil(remaining / 1000);
@@ -1341,8 +1397,8 @@ function animate() {
   updateMovement(dt);
   updateCreatures(dt, elapsed);
   updateHog(dt);
-  rival.root.visible = onlineCount <= 1;
-  if (onlineCount <= 1) {
+  rival.root.visible = botEnabled && onlineCount <= 1;
+  if (botEnabled && onlineCount <= 1) {
     updateRival(dt);
     updateRivalPlayerBump();
   }
@@ -1362,14 +1418,23 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+function resizeViewport() {
+  const { width, height } = getViewportSize();
+  document.documentElement.style.setProperty('--app-h', `${height}px`);
+  camera.aspect = width / height;
+  camera.fov = MOBILE && width / height > 1.95 ? 65 : 72;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(width, height, false);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-});
+}
+
+addEventListener('resize', resizeViewport);
+visualViewport?.addEventListener('resize', resizeViewport);
+visualViewport?.addEventListener('scroll', resizeViewport);
+resizeViewport();
 
 updateHUD();
 rebuildSkewerView();
 rebuildRivalSkewer();
+setBotEnabled(botEnabled, false);
 animate();
