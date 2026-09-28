@@ -16,6 +16,7 @@ const movePad = document.querySelector('#movePad');
 const moveKnob = document.querySelector('#moveKnob');
 const lookPad = document.querySelector('#lookPad');
 const stabButton = document.querySelector('#stabButton');
+const jumpButton = document.querySelector('#jumpButton');
 const dropButton = document.querySelector('#dropButton');
 const useButton = document.querySelector('#useButton');
 const rotateHint = document.querySelector('#rotateHint');
@@ -663,6 +664,12 @@ function bindMobileButton(button, action) {
   });
 }
 bindMobileButton(stabButton, thrust);
+bindMobileButton(jumpButton, () => {
+  if (player.grounded) {
+    player.velocityY = JUMP_SPEED;
+    player.grounded = false;
+  }
+});
 bindMobileButton(dropButton, dropPlayerLast);
 bindMobileButton(useButton, tryDeliver);
 
