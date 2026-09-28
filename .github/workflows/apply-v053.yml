@@ -1,0 +1,34 @@
+name: Apply Infernal Skewer v0.5.3 UX patch
+on:
+  push:
+    paths:
+      - '.github/patch_v053.py'
+      - '.github/workflows/apply-v053.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch game
+        run: python .github/patch_v053.py
+      - name: Syntax checks
+        run: |
+          node --check src/game.js
+          node --check src/network.js
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git config user.name 'Obefree'
+          git config user.email 'obefree1@gmail.com'
+          git add src/game.js
+          git commit -m 'Add player names bot control brighter lighting and iPhone viewport fixes'
+          git push
