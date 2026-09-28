@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#140503" />
+  <meta name="theme-color" content="#24100b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Infernal Skewer — Online Arena</title>
   <link rel="stylesheet" href="./styles.css" />
   <script type="importmap">
@@ -13,14 +16,15 @@
 <body>
   <canvas id="game"></canvas>
   <div id="hud" class="hud">
-    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">ONLINE FPS v0.5</span></div><div id="score">Score: 0</div></header>
+    <header class="topbar"><div><strong>INFERNAL SKEWER</strong><span class="muted">ONLINE FPS v0.5.3</span></div><div id="score">Score: 0</div></header>
     <section id="recipes" class="recipes"></section>
     <section class="right-panel">
       <div id="roundState">Round: --:--</div>
       <div id="onlineState">Online: 1 · room public</div>
       <div id="hogState">Mega Hog: roaming</div>
       <div id="skewerCount">Skewer: 0/8</div>
-      <div id="rivalState">Rival: — (0/8)</div>
+      <div id="rivalState">Bot: OFF</div>
+      <button id="botToggleButton" class="bot-toggle" type="button">BOT: OFF</button>
     </section>
     <div id="crosshair" class="crosshair">+</div>
     <div id="toast" class="toast hidden"></div>
@@ -44,7 +48,15 @@
     <div class="card">
       <div class="eyebrow">ONLINE HELL KITCHEN</div>
       <h1>Infernal Skewer</h1>
-      <p>Everyone opening the same room enters the same arena. Mobile: left thumb moves and turns the camera automatically; right thumb uses STAB / JUMP / DROP / USE.</p>
+      <p>Enter a name, then join the arena. Mobile: left thumb moves/turns; right thumb uses STAB / JUMP / DROP / USE.</p>
+      <label class="join-field">
+        <span>PLAYER NAME</span>
+        <input id="playerNameInput" type="text" maxlength="20" autocomplete="nickname" enterkeyhint="done" placeholder="Chef name" />
+      </label>
+      <label class="bot-option">
+        <input id="botStartToggle" type="checkbox" />
+        <span>Rival Bot for solo practice</span>
+      </label>
       <button id="startButton">JOIN PUBLIC ARENA</button>
       <a class="mode-link" href="./topdown.html">Try top-down mobile demo →</a>
       <p class="hint">Share this URL to play together. Add ?room=NAME for a separate room.</p>
