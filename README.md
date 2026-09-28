@@ -1,6 +1,6 @@
 # Infernal Skewer GAME
 
-Early browser prototype of a competitive hell-kitchen arena game.
+Browser prototype of a competitive hell-kitchen arena game.
 
 ## High concept
 
@@ -12,45 +12,26 @@ The skewer is simultaneously:
 
 Stab living ingredients to put them directly onto the skewer. The base skewer has **8 slots**. Meat comes from the shared **Mega Hog**: bait its charge into an arena wall, stab it while stunned, then bring a correct recipe to the **Infernal Grill**.
 
-## Current browser build — v0.3
+## Current browser build — v0.4
 
-Implemented now:
+### Core
 
-- real 3D scene with Three.js/WebGL;
-- FPS mouse look / pointer lock;
-- `WASD` movement;
-- `Space` jump;
-- `Shift` sprint;
-- `LMB` skewer thrust;
-- `E` recipe delivery near the Infernal Grill;
-- 8 visible player skewer slots;
+- Three.js/WebGL 3D arena;
+- base skewer capacity: **8 ingredients**;
+- long forward-facing pointed skewer model in FPS;
 - living onion / tomato / cheese / pepper / mushroom ingredients;
+- after successful harvest the ingredient creature disappears;
+- harvested ingredient creature respawns after a random **3–6 seconds** at a new arena position;
 - Mega Hog charge → wall crash → stun → meat harvest loop;
-- Mega Hog can target either the player or the Rival Chef;
-- three exact-order recipes and score;
-- **Rival Chef bot** with its own visible skewer and score;
-- bot chooses a recipe, hunts required ingredients, uses stunned Mega Hog and delivers at the grill;
-- bot can target the player when the exposed player ingredient is exactly what its recipe needs;
-- **precision steal**: stab the exposed last ingredient on the Rival Chef's skewer to transfer it to your own skewer;
-- normal body hit staggers the rival but does not magically steal food;
-- knocked-off ingredients become physical world objects instead of disappearing;
-- dropped ingredients bounce, remain on the floor temporarily and can be re-skewered by either side;
-- Hog and Rival Chef can knock the player's last ingredient onto the floor;
-- no HP/death loop yet.
+- Infernal Grill and exact-order recipes;
+- Rival Chef bot with its own visible skewer and score;
+- precision steal of the Rival Chef's exposed ingredient;
+- knocked-off / manually dropped food becomes a physical world object;
+- dropped food remains contestable and can be re-skewered.
 
-## Run
+### FPS mode — `index.html`
 
-Because the build uses ES modules, run it from a local web server instead of opening `index.html` directly:
-
-```bash
-python3 -m http.server 8080
-```
-
-Then open `http://localhost:8080`.
-
-The root is also suitable for simple static hosting (GitHub Pages, Vercel, Netlify, RawGitHack, etc.).
-
-## Controls
+Desktop controls:
 
 | Input | Action |
 |---|---|
@@ -59,24 +40,68 @@ The root is also suitable for simple static hosting (GitHub Pages, Vercel, Netli
 | Space | Jump |
 | Shift | Sprint |
 | LMB | Thrust / harvest / precision steal |
-| E | Deliver recipe at grill |
+| Q | Drop the exposed last ingredient |
+| E | Use / deliver at grill |
 | Esc | Release mouse |
+
+Mobile FPS controls:
+
+- landscape/fullscreen is requested when supported;
+- left virtual stick — move;
+- right half of the screen — swipe to look;
+- `STAB` — thrust;
+- `JUMP` — jump;
+- `DROP` — drop exposed last ingredient;
+- `USE` — contextual use / grill.
+
+### Top-down touch demo — `topdown.html`
+
+Experimental second control model for comparison:
+
+- camera above the arena;
+- **right thumb** virtual stick sets movement direction;
+- **left thumb** action cluster:
+  - `STAB`;
+  - `DROP`;
+  - `USE`;
+- player turns toward the movement vector;
+- same 8-slot skewer concept;
+- ingredient disappearance + delayed random respawn;
+- Mega Hog and Infernal Grill included;
+- desktop fallback: WASD / Space / Q / E.
+
+## Run locally
+
+Because the build uses ES modules, serve the repository over HTTP:
+
+```bash
+python3 -m http.server 8080
+```
+
+Then open:
+
+- `http://localhost:8080/` — FPS mode;
+- `http://localhost:8080/topdown.html` — top-down demo.
+
+The static root can also be hosted on GitHub Pages, Vercel, Netlify or RawGitHack.
 
 ## Core design rules
 
 - Standard skewer capacity is **8 ingredients**.
-- A ninth ingredient is rejected for now; overflow behavior will be tested later.
-- PvP should alter recipe state, not become a normal deathmatch.
+- A ninth ingredient is rejected for now.
+- PvP should alter recipe state rather than become a normal deathmatch.
 - Standard punishment should affect at most one ingredient.
-- The exposed last ingredient is the default steal/knock-off target.
+- The exposed last ingredient is the default steal / knock-off / manual-drop target.
+- Harvest sources should not be infinitely farmable in one fixed position.
 - Dropped food remains contestable rather than being deleted.
 - Combat, harvesting, inventory and recipe-building stay in one continuous loop.
 
 ## Next prototype pass
 
-1. shoulder dash / bump on Space-modifier or dedicated key;
-2. skewer-vs-skewer clash when both attacks meet;
-3. short vulnerable cooking timer at the Infernal Grill instead of instant delivery;
-4. stronger bot combat telegraph / thrust animation;
-5. simple 5–6 minute match timer and win state;
-6. first real multiplayer networking test after these interactions feel good.
+1. compare FPS vs top-down readability and control comfort;
+2. shoulder dash / bump;
+3. skewer-vs-skewer clash when both attacks meet;
+4. short vulnerable cooking timer at the Infernal Grill;
+5. stronger Rival Chef combat telegraph / thrust animation;
+6. 5–6 minute match timer and win state;
+7. first real multiplayer networking test after these interactions feel good.
