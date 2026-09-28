@@ -12,7 +12,26 @@ The skewer is simultaneously:
 
 Stab living ingredients to put them directly onto the skewer. The base skewer has **8 slots**. Meat comes from the shared **Mega Hog**: bait its charge into an arena wall, stab it while stunned, then bring a correct recipe to the **Infernal Grill**.
 
-## Current browser build — v0.4
+## Current browser build — v0.5 online MVP
+
+### Online arena
+
+The FPS build now uses **Supabase Realtime**.
+
+- opening the same room puts players into the same realtime arena channel;
+- default room: `public`;
+- separate test rooms can be opened with `?room=ROOM_NAME`;
+- connected players are visible as blue chefs;
+- position, facing, skewer contents and score are broadcast approximately 10 times per second;
+- Presence tracks who is online;
+- when a second real player joins, the local Rival Chef bot is hidden;
+- when alone, the Rival Chef remains active as a fallback opponent;
+- exposed ingredients can be precision-stolen from real online players;
+- one client is automatically elected room host for the prototype timer;
+- rounds currently last **3 minutes**;
+- at the end of a round the score and current skewer are reset and the next round begins automatically.
+
+Current networking limitation: ingredient creatures, dropped world food and Mega Hog simulation are still client-local. The next networking pass should make arena resources host-authoritative/shared.
 
 ### Core
 
@@ -24,8 +43,7 @@ Stab living ingredients to put them directly onto the skewer. The base skewer ha
 - harvested ingredient creature respawns after a random **3–6 seconds** at a new arena position;
 - Mega Hog charge → wall crash → stun → meat harvest loop;
 - Infernal Grill and exact-order recipes;
-- Rival Chef bot with its own visible skewer and score;
-- precision steal of the Rival Chef's exposed ingredient;
+- precision steal;
 - knocked-off / manually dropped food becomes a physical world object;
 - dropped food remains contestable and can be re-skewered.
 
@@ -47,20 +65,24 @@ Desktop controls:
 Mobile FPS controls:
 
 - landscape/fullscreen is requested when supported;
-- left virtual stick — move;
-- right half of the screen — swipe to look;
-- `STAB` — thrust;
-- `JUMP` — jump;
-- `DROP` — drop exposed last ingredient;
-- `USE` — contextual use / grill.
+- **left thumb** virtual stick handles navigation;
+- horizontal stick movement automatically turns the camera;
+- vertical stick movement moves forward/backward;
+- **right thumb** uses action buttons:
+  - `STAB`;
+  - `JUMP`;
+  - `DROP`;
+  - `USE`.
+
+There is no separate mobile camera-look zone in the current control experiment.
 
 ### Top-down touch demo — `topdown.html`
 
-Experimental second control model for comparison:
+Experimental second camera/control model:
 
 - camera above the arena;
-- **right thumb** virtual stick sets movement direction;
-- **left thumb** action cluster:
+- **left thumb** virtual stick controls movement and facing;
+- **right thumb** action cluster:
   - `STAB`;
   - `DROP`;
   - `USE`;
@@ -70,9 +92,11 @@ Experimental second control model for comparison:
 - Mega Hog and Infernal Grill included;
 - desktop fallback: WASD / Space / Q / E.
 
-## Run locally
+The top-down demo is still primarily a control prototype; FPS is the first networking target.
 
-Because the build uses ES modules, serve the repository over HTTP:
+## Online / local run
+
+The repository is a static site and can be served directly by static hosting. For local development:
 
 ```bash
 python3 -m http.server 8080
@@ -82,8 +106,6 @@ Then open:
 
 - `http://localhost:8080/` — FPS mode;
 - `http://localhost:8080/topdown.html` — top-down demo.
-
-The static root can also be hosted on GitHub Pages, Vercel, Netlify or RawGitHack.
 
 ## Core design rules
 
@@ -98,10 +120,10 @@ The static root can also be hosted on GitHub Pages, Vercel, Netlify or RawGitHac
 
 ## Next prototype pass
 
-1. compare FPS vs top-down readability and control comfort;
-2. shoulder dash / bump;
-3. skewer-vs-skewer clash when both attacks meet;
-4. short vulnerable cooking timer at the Infernal Grill;
-5. stronger Rival Chef combat telegraph / thrust animation;
-6. 5–6 minute match timer and win state;
-7. first real multiplayer networking test after these interactions feel good.
+1. make ingredient/Hog/drop state shared and host-authoritative;
+2. add simple lobby / room-code UI rather than relying on query parameters;
+3. add match end screen / leaderboard before automatic reset;
+4. shoulder dash / bump;
+5. skewer-vs-skewer clash;
+6. short vulnerable cooking timer at the Infernal Grill;
+7. deploy to a permanent branded URL instead of relying on development static hosting.
