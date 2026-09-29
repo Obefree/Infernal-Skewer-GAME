@@ -43,30 +43,5 @@ for old, new, label in [
 ]:
     rep(old, new, label)
 
-# Elevated ingredients stay on their terrace instead of fleeing off the edge
-# while retaining their vertical height.
-old = """    if (playerDistance < 3.8 && playerDistance > 0.01) {
-      creature.position.x -= (playerDx / playerDistance) * dt * 0.7;
-      creature.position.z -= (playerDz / playerDistance) * dt * 0.7;
-    } else if (rivalDistance < 3.4 && rivalDistance > 0.01) {
-      creature.position.x -= (rivalDx / rivalDistance) * dt * 0.55;
-      creature.position.z -= (rivalDz / rivalDistance) * dt * 0.55;
-    }
-
-    creature.position.x = THREE.MathUtils.clamp(creature.position.x, -ARENA_HALF + 1.4, ARENA_HALF - 1.4);
-    creature.position.z = THREE.MathUtils.clamp(creature.position.z, -ARENA_HALF + 1.4, ARENA_HALF - 1.4);"""
-new = """    if ((creature.userData.baseY || 0) <= 0.05) {
-      if (playerDistance < 3.8 && playerDistance > 0.01) {
-        creature.position.x -= (playerDx / playerDistance) * dt * 0.7;
-        creature.position.z -= (playerDz / playerDistance) * dt * 0.7;
-      } else if (rivalDistance < 3.4 && rivalDistance > 0.01) {
-        creature.position.x -= (rivalDx / rivalDistance) * dt * 0.55;
-        creature.position.z -= (rivalDz / rivalDistance) * dt * 0.55;
-      }
-
-      creature.position.x = THREE.MathUtils.clamp(creature.position.x, -ARENA_HALF + 1.4, ARENA_HALF - 1.4);
-      creature.position.z = THREE.MathUtils.clamp(creature.position.z, -ARENA_HALF + 1.4, ARENA_HALF - 1.4);
-    }"""
-rep(old, new, 'lock elevated ingredients')
-
+# v0.5.8 already locks raised ingredients to their terrace, so no extra movement patch is needed here.
 p.write_text(s)
