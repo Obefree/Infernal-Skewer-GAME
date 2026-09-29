@@ -66,15 +66,15 @@ const ingredientDefs = {
 };
 
 const recipeTemplates = [
-  { id: 'garden-bite', name: 'Garden Bite', items: ['onion', 'tomato', 'mushroom'], points: 190, vegan: true },
-  { id: 'fire-garden', name: 'Fire Garden', items: ['pepper', 'tomato', 'mushroom', 'onion'], points: 330, vegan: true },
-  { id: 'green-tower', name: 'Green Tower', items: ['mushroom', 'onion', 'pepper', 'tomato', 'mushroom'], points: 470, vegan: true },
-  { id: 'cheese-curse', name: 'Cheese Curse', items: ['cheese', 'tomato', 'pepper'], points: 240 },
-  { id: 'imp-snack', name: 'Imp Snack', items: ['meat', 'onion'], points: 260, meatRecipe: true },
-  { id: 'hell-classic', name: 'Hell Classic', items: ['meat', 'onion', 'tomato'], points: 420, meatRecipe: true },
-  { id: 'boar-feast', name: 'Boar Feast', items: ['meat', 'onion', 'meat', 'pepper'], points: 760, meatRecipe: true },
-  { id: 'devils-stack', name: "Devil's Stack", items: ['meat', 'pepper', 'cheese', 'meat'], points: 820, meatRecipe: true },
-  { id: 'gluttons-spear', name: "Glutton's Spear", items: ['meat', 'onion', 'tomato', 'mushroom', 'pepper', 'cheese', 'meat', 'onion'], points: 1450, meatRecipe: true },
+  { id: 'garden-bite', name: 'Garden Bite', items: ['onion', 'tomato', 'mushroom'], points: 150, vegan: true },
+  { id: 'fire-garden', name: 'Fire Garden', items: ['pepper', 'tomato', 'mushroom', 'onion'], points: 280, vegan: true },
+  { id: 'green-tower', name: 'Green Tower', items: ['mushroom', 'onion', 'pepper', 'tomato', 'mushroom'], points: 360, vegan: true },
+  { id: 'cheese-curse', name: 'Cheese Curse', items: ['cheese', 'tomato', 'pepper'], points: 220 },
+  { id: 'imp-snack', name: 'Imp Snack', items: ['meat', 'onion'], points: 380, meatRecipe: true },
+  { id: 'hell-classic', name: 'Hell Classic', items: ['meat', 'onion', 'tomato'], points: 520, meatRecipe: true },
+  { id: 'boar-feast', name: 'Boar Feast', items: ['meat', 'onion', 'meat', 'pepper'], points: 850, meatRecipe: true },
+  { id: 'devils-stack', name: "Devil's Stack", items: ['meat', 'pepper', 'cheese', 'meat'], points: 900, meatRecipe: true },
+  { id: 'gluttons-spear', name: "Glutton's Spear", items: ['meat', 'onion', 'tomato', 'mushroom', 'pepper', 'cheese', 'meat', 'onion'], points: 1500, meatRecipe: true },
 ];
 
 function seededRandom(seed) {
@@ -229,15 +229,15 @@ function addRaisedPlatform(x, z, width, depth, height, baseColor, topColor, kind
 // Main harvest cascade: four distinct jumps are required to reach the crown.
 // Each terrace overlaps the previous one enough to create a readable upward route,
 // but the height difference prevents a direct ground-to-top shortcut.
-addRaisedPlatform(-17.0, 3.7, 5.8, 5.0, 0.48, 0x4d2519, 0x70402c, 'cascade-1');
-addRaisedPlatform(-14.3, 5.1, 5.4, 4.6, 1.02, 0x55271d, 0x7c4931, 'cascade-2');
-addRaisedPlatform(-11.8, 6.5, 5.0, 4.2, 1.56, 0x5d2b20, 0x895038, 'cascade-3');
-addRaisedPlatform(-9.5, 7.8, 4.7, 3.8, 2.10, 0x663025, 0x965c3f, 'cascade-crown');
+addRaisedPlatform(-17.0, 3.7, 5.8, 5.0, 0.72, 0x4d2519, 0x70402c, 'cascade-1');
+addRaisedPlatform(-14.3, 5.1, 5.4, 4.6, 1.44, 0x55271d, 0x7c4931, 'cascade-2');
+addRaisedPlatform(-11.8, 6.5, 5.0, 4.2, 2.16, 0x5d2b20, 0x895038, 'cascade-3');
+addRaisedPlatform(-9.5, 7.8, 4.7, 3.8, 2.88, 0x663025, 0x965c3f, 'cascade-crown');
 
 // A second, shorter garden cascade on the opposite side gives another vertical route.
-addRaisedPlatform(16.5, 5.0, 5.8, 4.6, 0.46, 0x49301b, 0x614421, 'garden-step-1');
-addRaisedPlatform(14.0, 6.3, 5.3, 4.2, 0.96, 0x50351c, 0x6b4d25, 'garden-step-2');
-addRaisedPlatform(11.8, 7.5, 4.8, 3.8, 1.46, 0x593b20, 0x77582b, 'garden-step-3');
+addRaisedPlatform(16.5, 5.0, 5.8, 4.6, 0.70, 0x49301b, 0x614421, 'garden-step-1');
+addRaisedPlatform(14.0, 6.3, 5.3, 4.2, 1.40, 0x50351c, 0x6b4d25, 'garden-step-2');
+addRaisedPlatform(11.8, 7.5, 4.8, 3.8, 2.10, 0x593b20, 0x77582b, 'garden-step-3');
 
 // Low garden beds remain useful ground-level harvest lanes.
 addRaisedPlatform(-14, -10, 6.8, 2.8, 0.42, 0x4d2519, 0x2d1a10, 'garden');
@@ -322,12 +322,12 @@ spawnIngredient('onion', -14.8, -10, 0.42);
 spawnIngredient('onion', -13.0, -6.2, 0.42);
 spawnIngredient('tomato', 14.8, -10, 0.42);
 spawnIngredient('tomato', 13.0, -6.2, 0.42);
-spawnIngredient('cheese', -9.6, 7.8, 2.10);
-spawnIngredient('cheese', -11.7, 6.4, 1.56);
-spawnIngredient('pepper', 11.8, 7.5, 1.46);
-spawnIngredient('pepper', 14.0, 6.3, 0.96);
-spawnIngredient('mushroom', -14.3, 5.1, 1.02);
-spawnIngredient('mushroom', 16.5, 5.0, 0.46);
+spawnIngredient('cheese', -9.6, 7.8, 2.88);
+spawnIngredient('cheese', -11.7, 6.4, 2.16);
+spawnIngredient('pepper', 11.8, 7.5, 2.10);
+spawnIngredient('pepper', 14.0, 6.3, 1.40);
+spawnIngredient('mushroom', -14.3, 5.1, 1.44);
+spawnIngredient('mushroom', 16.5, 5.0, 0.70);
 
 const grill = new THREE.Group();
 grill.position.set(0, 0, 17.0);
