@@ -10,6 +10,7 @@ canvas { position: fixed; left: var(--app-x); top: var(--app-y); display: block;
 .recipe { padding: 10px 12px; border-radius: 12px; border: 1px solid #ff9e6255; background: linear-gradient(135deg,#3a130dd9,#1a0906d0); backdrop-filter: blur(8px); }
 .recipe-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
 .recipe-points { color: #ffd166; font-weight: 800; }
+.recipe.meat-recipe { border-color: #ff6f4a88; box-shadow: inset 3px 0 0 #ff6f4a66; }
 .recipe-items { margin-top: 5px; letter-spacing: 5px; font-size: 21px; }
 .right-panel { position: absolute; top: 58px; right: max(18px, env(safe-area-inset-right)); text-align: right; font-size: 13px; line-height: 1.55; }
 .compact-online { background: #12050488; border: 1px solid #ffffff22; border-radius: 10px; padding: 6px 9px; }
